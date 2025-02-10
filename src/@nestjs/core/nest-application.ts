@@ -11,7 +11,17 @@ export class NestApplication {
    * 初始化
    */
   async init() {
-
+    // 取出模块中的所有控制器 进行路由配置
+    const controllers = Reflect.getMetadata('controllers', this.module) || []
+    Logger.log(`AppModule dependencies initialized`, 'InstanceLoader')
+    for (const Controller of controllers) {
+      // 创建每一个控制器的实例
+      const controller = new Controller()
+      // 获取每个控制器的前缀
+      const prefix = Reflect.getMetadata('prefix', Controller) || '/'
+      // 解析路由
+      Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver')
+    }
   }
   /**
    *  启动
