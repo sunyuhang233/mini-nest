@@ -1,5 +1,6 @@
-import express, { Express } from "express";
+import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from "express";
 import { Logger } from ".";
+import path from "path";
 export class NestApplication {
   // 内部私有化一个express实例
   private readonly app: Express = express()
@@ -21,6 +22,25 @@ export class NestApplication {
       const prefix = Reflect.getMetadata('prefix', Controller) || '/'
       // 解析路由
       Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver')
+      for (const methodName of Object.getOwnPropertyNames(Controller.prototype)) {
+        // 获取到每一个方法
+        const method = Controller.prototype[methodName]
+        // 获取到每一个方法上的请求方法的元数据
+        const httpMethod = Reflect.getMetadata('method', method)
+        // 获取到每一个方法上的请求路径的元数据
+        const pathMetadata = Reflect.getMetadata('path', method)
+        // 将路由配置到express中
+        if (!httpMethod) {
+          continue
+        }
+        let routePath = path.posix.join('/', prefix, pathMetadata)
+        this.app[httpMethod.toLowerCase()](routePath, async (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
+          const result = await method.call(controller)
+          res.send(result)
+        })
+        Logger.log(`Mapped ${routePath} ${httpMethod} route`, 'RoutesResolver')
+      }
+      Logger.log(`Nest application successfully started`, 'NestApplication')
     }
   }
   /**
