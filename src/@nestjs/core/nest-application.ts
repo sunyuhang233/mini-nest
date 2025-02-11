@@ -16,6 +16,7 @@ class NestApplication {
   }
   // 使用中间件的方法
   use(middleware: (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => void) {
+    console.log('middleware');
     this.app.use(middleware);
   }
   // 初始化方法
@@ -68,11 +69,21 @@ class NestApplication {
     const paramsMetadata = Reflect.getMetadata(`params`, instance, methodName) || [];
     // 根据参数的索引排序并返回参数数组
     return paramsMetadata.map((param: any) => {
-      const { key } = param;
+      const { key, data } = param;
       switch (key) {
         case 'Request':
         case 'Req':
           return req;
+        case 'Query':
+          return data ? req.query[data] : req.query;
+        case 'Headers':
+          return data ? req.headers[data] : req.headers;
+        case 'Session':
+          return data ? req.session[data] : req.session;
+        case 'Ip':
+          return req.ip;
+        case 'Param':
+          return data ? req.params[data] : req.params;
         default:
           return null;
       }

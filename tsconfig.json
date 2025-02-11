@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
     "module": "commonjs",
+    "typeRoots": [
+      "./types"
+    ],
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -22,6 +25,6 @@
       "@nestjs/*": [
         "src/@nestjs/*"
       ]
-    }
-  }
+    },
+  },
 }

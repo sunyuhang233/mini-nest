@@ -1,5 +1,4 @@
-// 从 '@nestjs/common' 模块导入 Controller、Get、Request 和 Req 装饰器
-import { Controller, Get, Request, Req } from './@nestjs/common';
+import { Controller, Get, Request, Req, Session, Ip, Param } from './@nestjs/common';
 // 从 'express' 模块导入 Request 类型并重命名为 ExpressRequest
 import { Request as ExpressRequest } from 'express';
 // 使用 @Controller 装饰器定义 'users' 路由
@@ -12,5 +11,32 @@ export class UserController {
     console.log(req.url);
     console.log(request.url);
     return 'Request handled';
+  }
+
+  @Get('session')
+  handleSession(@Session() session: any, @Session('pageViews') pageViews: string): string {
+    console.log(session);
+    console.log(pageViews);
+    if (!session.pageViews) {
+      session.pageViews = 1;
+    } else {
+      session.pageViews++;
+    }
+    return `You visited this page ${session.pageViews} times`;
+  }
+
+  @Get('ip')
+  handleIp(@Ip() ip: string): string {
+    return `The IP address of the user is: ${ip}`;
+  }
+  @Get(':username/info/:age')
+  handleInfo(@Param() params: any, @Param('username') username: string, @Param('age') age: number): string {
+    console.log(params);
+    return `Hello, ${username}! You are ${age} years old.`;
+  }
+
+  @Get('ab*de')
+  handleWildcardRoute() {
+    return 'This route uses a wildcard';
   }
 }
