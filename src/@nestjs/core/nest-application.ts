@@ -13,10 +13,11 @@ class NestApplication {
   // 构造函数，接收一个模块作为参数
   constructor(module: any) {
     this.module = module;
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
   }
   // 使用中间件的方法
   use(middleware: (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => void) {
-    console.log('middleware');
     this.app.use(middleware);
   }
   // 初始化方法
@@ -53,7 +54,8 @@ class NestApplication {
             // 调用方法并获取结果
             const result = await method.call(controller, ...args);
             // 发送响应结果
-            res.send(result);
+            const responseMeta = this.getResponseMetadata(controller, methodName);
+            if (!responseMeta || (responseMeta.data?.passthrough)) return res.send(result);
           });
           // 记录路由映射日志
           Logger.log(`Mapped {${routPath}, ${httpMethod}} route`, 'RouterExplorer');
@@ -62,6 +64,10 @@ class NestApplication {
     }
     // 记录应用启动成功日志
     Logger.log('Nest application successfully started', 'NestApplication');
+  }
+  private getResponseMetadata(controller: any, methodName: string) {
+    const paramsMetadata = Reflect.getMetadata(`params`, controller, methodName) || [];
+    return paramsMetadata.filter(Boolean).find((param: any) => param.key === 'Response' || param.key === 'Res');
   }
   // 解析方法参数
   private resolveParams(instance: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: Function): any[] {
@@ -84,6 +90,11 @@ class NestApplication {
           return req.ip;
         case 'Param':
           return data ? req.params[data] : req.params;
+        case 'Response':
+        case 'Res':
+          return res;
+        case 'Body':
+          return data ? req.body[data] : req.body;
         default:
           return null;
       }

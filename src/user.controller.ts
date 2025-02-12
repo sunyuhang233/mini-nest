@@ -1,6 +1,6 @@
-import { Controller, Get, Request, Req, Session, Ip, Param } from './@nestjs/common';
+import { Controller, Get, Request, Req, Session, Ip, Param, Post, Body, Response, Res } from './@nestjs/common';
 // 从 'express' 模块导入 Request 类型并重命名为 ExpressRequest
-import { Request as ExpressRequest } from 'express';
+import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 // 使用 @Controller 装饰器定义 'users' 路由
 @Controller('users')
 export class UserController {
@@ -38,5 +38,22 @@ export class UserController {
   @Get('ab*de')
   handleWildcardRoute() {
     return 'This route uses a wildcard';
+  }
+
+  @Post('create')
+  handleCreate(@Body() body: any, @Body("username") username: string): string {
+    console.log(body);
+    console.log(username);
+    return 'User created';
+  }
+
+  @Get('res')
+  handleResponse(@Res() res: ExpressResponse, @Response() response: ExpressResponse): void {
+    res.send('Custom response');
+  }
+
+  @Get('passthrough')
+  passthrough(@Res({ passthrough: true }) res: ExpressResponse): string {
+    return 'Custom response';
   }
 }
