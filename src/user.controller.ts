@@ -1,6 +1,7 @@
-import { Controller, Get, Request, Req, Session, Ip, Param, Post, Body, Response, Res } from './@nestjs/common';
+import { Controller, Get, Request, Req, Session, Ip, Param, Post, Body, Response, Res, Next, Redirect, HttpCode, Header } from './@nestjs/common';
 // 从 'express' 模块导入 Request 类型并重命名为 ExpressRequest
 import { Request as ExpressRequest, Response as ExpressResponse } from 'express';
+import { User } from './user.decorators';
 // 使用 @Controller 装饰器定义 'users' 路由
 @Controller('users')
 export class UserController {
@@ -55,5 +56,39 @@ export class UserController {
   @Get('passthrough')
   passthrough(@Res({ passthrough: true }) res: ExpressResponse): string {
     return 'Custom response';
+  }
+
+  @Get('next')
+  handleNext(@Next() next) {
+    console.log('next');
+    next();
+  }
+
+  @Get('redirect')
+  @Redirect('/users/req', 302)
+  handleRedirect(): void { }
+
+  @Get('redirect2')
+  handleRedirect2() {
+    return { url: 'https://www.baidu.com', statusCode: 301 };
+  }
+
+  @Get("code")
+  @HttpCode(200)
+  handleCode() {
+    return "404 233";
+  }
+
+  @Get("header")
+  @Header("key1", "value1")
+  @Header("key2", "value2")
+  handleHeader() {
+    return "Hello World";
+  }
+
+  @Get("customer")
+  customer(@User() user: any, @User("username") username: string) {
+    console.log(user);
+    return username;
   }
 }

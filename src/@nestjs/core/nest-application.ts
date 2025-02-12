@@ -15,6 +15,10 @@ class NestApplication {
     this.module = module;
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
+    this.app.use((req: any, res, next) => {
+      req.user = { username: "admin", password: "123456" }
+      next()
+    })
   }
   // 使用中间件的方法
   use(middleware: (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => void) {
@@ -43,6 +47,13 @@ class NestApplication {
         const pathMetadata = Reflect.getMetadata('path', method);
         // 获取方法的 HTTP 方法元数据
         const httpMethod = Reflect.getMetadata('method', method);
+        // 获取重定向地址
+        const redirectUrl = Reflect.getMetadata('redirectUrl', method);
+        // 获取状态码
+        const redirectStatusCode = Reflect.getMetadata('redirectStatusCode', method);
+        const statusCode = Reflect.getMetadata('statusCode', method);
+        // 获取是否自定义了headers
+        const headers = Reflect.getMetadata('headers', method) || [];
         // 如果定义了 HTTP 方法
         if (httpMethod) {
           // 生成路由路径
@@ -51,11 +62,27 @@ class NestApplication {
           this.app[httpMethod.toLowerCase()](routPath, async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
             // 解析方法参数
             const args = this.resolveParams(controller, methodName, req, res, next);
-            // 调用方法并获取结果
+            // 调用方法并获取结果 
             const result = await method.call(controller, ...args);
+            // 判断是否是在函数运行结果里面定义了重定向
+            if (result?.url) return res.redirect(result.statusCode || 302, result.url);
+            // 判断是否需要重定向
+            if (redirectUrl) return res.redirect(redirectStatusCode || 302, redirectUrl);
+            // 判断状态码
+            if (statusCode) {
+              res.statusCode = statusCode
+            } else if (httpMethod === 'POST') {
+              res.statusCode = 201
+            }
+
             // 发送响应结果
             const responseMeta = this.getResponseMetadata(controller, methodName);
-            if (!responseMeta || (responseMeta.data?.passthrough)) return res.send(result);
+            if (!responseMeta || (responseMeta.data?.passthrough)) {
+              headers.forEach((header: { name: string, value: string }) => {
+                res.setHeader(header.name, header.value);
+              })
+              return res.send(result);
+            }
           });
           // 记录路由映射日志
           Logger.log(`Mapped {${routPath}, ${httpMethod}} route`, 'RouterExplorer');
@@ -67,7 +94,7 @@ class NestApplication {
   }
   private getResponseMetadata(controller: any, methodName: string) {
     const paramsMetadata = Reflect.getMetadata(`params`, controller, methodName) || [];
-    return paramsMetadata.filter(Boolean).find((param: any) => param.key === 'Response' || param.key === 'Res');
+    return paramsMetadata.filter(Boolean).find((param: any) => param.key === 'Response' || param.key === 'Res' || param.key === 'Next');
   }
   // 解析方法参数
   private resolveParams(instance: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: Function): any[] {
@@ -75,7 +102,17 @@ class NestApplication {
     const paramsMetadata = Reflect.getMetadata(`params`, instance, methodName) || [];
     // 根据参数的索引排序并返回参数数组
     return paramsMetadata.map((param: any) => {
-      const { key, data } = param;
+      const { key, data, factory } = param;
+      // 返回上下文
+      const ctx = {
+        switchToHttp() {
+          return {
+            getRequest: () => req,
+            getResponse: () => res,
+            getNext: () => next
+          }
+        }
+      }
       switch (key) {
         case 'Request':
         case 'Req':
@@ -95,6 +132,10 @@ class NestApplication {
           return res;
         case 'Body':
           return data ? req.body[data] : req.body;
+        case 'Next':
+          return next;
+        case 'DecoratorFactory':
+          return factory(data, ctx);
         default:
           return null;
       }
