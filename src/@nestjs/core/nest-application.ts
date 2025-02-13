@@ -47,7 +47,8 @@ class NestApplication {
         this.providers.set(provider.provide, provider.useFactory(...injectValues))
       } else {
         // 只提供了一个类
-        this.providers.set(provider.provide, new provider())
+        const dependencies = this.resolveDependencies(provider);
+        this.providers.set(provider.provide, new provider(...dependencies))
       }
     }
   }
