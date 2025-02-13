@@ -6,7 +6,7 @@ import { LoggerService } from "./logger.service";
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService,
-    @Inject('LoggerService') private readonly loggerService: LoggerService
+    @Inject('FactoryToken') private readonly loggerService: LoggerService
   ) { }
 
   @Get()

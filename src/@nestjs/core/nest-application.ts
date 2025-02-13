@@ -13,6 +13,8 @@ class NestApplication {
   private readonly app: Express = express();
   // 定义私有的模块属性
   private readonly module: any;
+  // 定义私有的 providers 属性
+  private readonly providers = new Map();
   // 构造函数，接收一个模块作为参数
   constructor(module: any) {
     this.module = module;
@@ -22,6 +24,32 @@ class NestApplication {
       req.user = { username: "admin", password: "123456" }
       next()
     })
+    // 注入provider
+    this.initProviders()
+  }
+  initProviders() {
+    const providers = Reflect.getMetadata('providers', this.module) || [];
+    for (const provider of providers) {
+      // 如果provider是一个类
+      if (provider.provide && provider.useClass) {
+        // 创建类的实例 (未完成 可能还会有其他依赖)
+        const dependencies = this.resolveDependencies(provider.useClass);
+        const classInstance = new provider.useClass(...dependencies)
+        // 保存provider
+        this.providers.set(provider.provide, classInstance);
+      } else if (provider.provide && provider.useValue) {
+        // 提供的是值
+        this.providers.set(provider.provide, provider.useValue)
+      } else if (provider.provide && provider.useFactory) {
+        const inject = provider.inject ?? []
+        // 提供的是工厂函数 (未完成 可能还会有其他依赖)
+        const injectValues = inject.map((injectToken) => this.getProviderByToken(injectToken))
+        this.providers.set(provider.provide, provider.useFactory(...injectValues))
+      } else {
+        // 只提供了一个类
+        this.providers.set(provider.provide, new provider())
+      }
+    }
   }
   // 使用中间件的方法
   use(middleware: (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => void) {
@@ -102,9 +130,12 @@ class NestApplication {
     const injectTokens = Reflect.getMetadata(INJECTED_TOKENS, controller) || []
     const constructor = Reflect.getMetadata(DESIGN_PARAMTYPES, controller) || []
     return constructor.map((param: any, index: number) => {
-      if (index === 0) return new AppService()
-      else if (index === 1) return new LoggerService()
+      //把每一个param中的token默认换成对应的provider
+      return this.getProviderByToken(injectTokens[index] ?? param)
     })
+  }
+  private getProviderByToken(injectToken) {
+    return this.providers.get(injectToken) ?? injectToken
   }
   // 获取响应元数据
   private getResponseMetadata(controller: any, methodName: string) {
