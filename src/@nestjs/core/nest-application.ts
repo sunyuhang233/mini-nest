@@ -4,6 +4,9 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import path from 'path';
 // 引入 Logger 类
 import { Logger } from './logger';
+import { DESIGN_PARAMTYPES, INJECTED_TOKENS } from '@nestjs/common/constants';
+import { AppService } from 'src/app.service';
+import { LoggerService } from 'src/logger.service';
 // 定义 NestApplication 类
 class NestApplication {
   // 定义私有的 express 实例
@@ -32,8 +35,10 @@ class NestApplication {
     Logger.log('AppModule dependencies initialized', 'InstanceLoader');
     // 遍历所有控制器
     for (const Controller of controllers) {
+      // 获取控制器的依赖
+      const dependencies = this.resolveDependencies(Controller);
       // 创建控制器实例
-      const controller = new Controller();
+      const controller = new Controller(...dependencies);
       // 获取控制器的前缀
       const prefix = Reflect.getMetadata('prefix', Controller) || '/';
       // 获取控制器的原型
@@ -92,6 +97,16 @@ class NestApplication {
     // 记录应用启动成功日志
     Logger.log('Nest application successfully started', 'NestApplication');
   }
+  // 解析控制器依赖
+  private resolveDependencies(controller: any) {
+    const injectTokens = Reflect.getMetadata(INJECTED_TOKENS, controller) || []
+    const constructor = Reflect.getMetadata(DESIGN_PARAMTYPES, controller) || []
+    return constructor.map((param: any, index: number) => {
+      if (index === 0) return new AppService()
+      else if (index === 1) return new LoggerService()
+    })
+  }
+  // 获取响应元数据
   private getResponseMetadata(controller: any, methodName: string) {
     const paramsMetadata = Reflect.getMetadata(`params`, controller, methodName) || [];
     return paramsMetadata.filter(Boolean).find((param: any) => param.key === 'Response' || param.key === 'Res' || param.key === 'Next');
