@@ -5,4 +5,8 @@ export class AppController {
   index() {
     return 'Hello World Nest!';
   }
+  @Get('hello')
+  hello() {
+    return 'Hello Nest!';
+  }
 }
