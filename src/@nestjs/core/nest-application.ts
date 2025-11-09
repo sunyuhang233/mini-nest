@@ -1,6 +1,8 @@
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
+import { LoggerService, UseValueService } from 'src/logger.service';
+import { CONSTRUCTOR_PARAMTYPES, INJECTED_TOKENS } from '@nestjs/common';
 export class NestApplication {
   private readonly app: Express = express();
   constructor(private readonly module: any) {
@@ -20,8 +22,10 @@ export class NestApplication {
     const controllers = Reflect.getMetadata("controllers", this.module) || []
     Logger.log("AppModule dependencies initialized", 'InstanceLoader');
     for (const Controller of controllers) {
+      // 解析控制器的依赖注入
+      const dependencies = this.resolveDependencies(Controller)
       // 创建每个控制器的实例
-      const controller = new Controller()
+      const controller = new Controller(...dependencies)
       // 获取路由前缀
       const prefix = Reflect.getMetadata('prefix', controller.constructor) || '/'
       Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver');
@@ -113,6 +117,19 @@ export class NestApplication {
   resolveResponseMetadata(controller: any, methodName: string) {
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
     return paramsMetadata.filter(Boolean).find((item) => item.key === 'Res' || item.key === 'Response' || item.key === 'Next')
+  }
+  resolveDependencies(controller: any) {
+    // 注入的token
+    const injectedTokens = Reflect.getMetadata(INJECTED_TOKENS, controller) || []
+    // 获取构造函数的参数
+    const constructorParams = Reflect.getMetadata(CONSTRUCTOR_PARAMTYPES, controller) || []
+    return constructorParams.map((param, index) => {
+      if (index === 0) {
+        return new LoggerService()
+      } else if (index === 1) {
+        return new UseValueService()
+      }
+    })
   }
   async use(middleware) {
     this.app.use(middleware)
