@@ -1,5 +1,6 @@
 import { Get, Controller, Req, Request, Query, Headers, Session, Ip, Param, Post, Body, Header, Res, Response, Next, Redirect, HttpCode } from "@nestjs/common";
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
+import { User } from "./user.decorator";
 @Controller('user')
 export class UserController {
   @Get('req')
@@ -88,6 +89,14 @@ export class UserController {
     return {
       url: `https://docs.nestjs.com/${version}/`,
     }
+  }
+
+  @Get("/customParamDecorator")
+  handleCustomParamDecorator(@User() user: Record<string, any>, @User("username") username: string, @User("age") age: number) {
+    console.log(user)
+    console.log(username)
+    console.log(age)
+    return user
   }
 }
 

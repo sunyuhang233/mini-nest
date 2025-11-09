@@ -6,6 +6,14 @@ export class NestApplication {
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
     this.app.use(express.urlencoded({ extended: true })) // 解析 urlencoded 格式的请求体
+    this.app.use((req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
+      // @ts-expect-error
+      req.user = {
+        username: "hang",
+        age: 18,
+      }
+      next()
+    })
   }
   async init() {
     // 取出控制器 处理路由配置
@@ -65,7 +73,14 @@ export class NestApplication {
   resolveParams(controller: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) {
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
     return paramsMetadata.map((item) => {
-      const { key, data } = item
+      const { key, data, factory } = item
+      const ctx = { // 因为nest不但支持http 还支持 graphql 微服务 web socket 等 兼容处理
+        switchToHttp: () => ({
+          getRequest: () => req,
+          getResponse: () => res,
+          getNext: () => next,
+        })
+      }
       switch (key) {
         case 'Request':
         case 'Req':
@@ -88,6 +103,8 @@ export class NestApplication {
           return res
         case "Next":
           return next
+        case 'DecoratorFactory':
+          return factory(data, ctx)
         default:
           return null
       }
