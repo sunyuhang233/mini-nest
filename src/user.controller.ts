@@ -1,5 +1,5 @@
-import { Get, Controller, Req, Request, Query, Headers, Session, Ip, Param } from "@nestjs/common";
-import type { Request as ExpressRequest } from 'express';
+import { Get, Controller, Req, Request, Query, Headers, Session, Ip, Param, Post, Body, Res, Response } from "@nestjs/common";
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 @Controller('user')
 export class UserController {
   @Get('req')
@@ -49,6 +49,24 @@ export class UserController {
   @Get("star/ab*de")
   handleStar() {
     return 'User Nest! '
+  }
+  @Post("login")
+  handleLogin(@Body() body: Record<string, any>, @Body("username") username: string, @Body("password") password: string) {
+    console.log(body)
+    console.log(username)
+    console.log(password)
+    return 'User Nest! '
+  }
+  @Post("register")
+  handleRegister(@Body() body: Record<string, any>, @Res() res: ExpressResponse) {
+    console.log(body)
+    return 'aa'
+  }
+  @Get("passthrough")
+  handlePassthrough(@Response({ passthrough: true }) res: ExpressResponse) {
+    // 有的时候 我们只想添加一些响应头 而不是返回一个响应体
+    res.setHeader('key', 'value')
+    return 'aabb'
   }
 }
 

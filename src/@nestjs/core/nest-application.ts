@@ -4,6 +4,8 @@ import path from 'path';
 export class NestApplication {
   private readonly app: Express = express();
   constructor(private readonly module: any) {
+    this.app.use(express.json()) // 解析 json 格式的请求体
+    this.app.use(express.urlencoded({ extended: true })) // 解析 urlencoded 格式的请求体
   }
   async init() {
     // 取出控制器 处理路由配置
@@ -27,7 +29,11 @@ export class NestApplication {
           // 解析参数
           const args = this.resolveParams(controller, methodName, req, res, next)
           const result = method.call(controller, ...args)
-          res.send(result)
+          const responseMetadata = this.resolveResponseMetadata(controller, methodName)
+          // 没有注入 Response 装饰器 或者 开启 passthrough 模式 都由nest 处理响应
+          if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
+            res.send(result)
+          }
         })
         Logger.log(`Mapped {${fullPath}}, ${httpMethod} route`, 'RoutesResolver');
       }
@@ -53,10 +59,19 @@ export class NestApplication {
           return req.ip
         case "Param":
           return data ? req.params[data] : req.params
+        case "Body":
+          return data ? req.body[data] : req.body
+        case "Res":
+        case "Response":
+          return res
         default:
           return null
       }
     })
+  }
+  resolveResponseMetadata(controller: any, methodName: string) {
+    const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
+    return paramsMetadata.filter(Boolean).find((item) => item.key === 'Res' || item.key === 'Response')
   }
   async use(middleware) {
     this.app.use(middleware)
