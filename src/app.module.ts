@@ -10,10 +10,7 @@ import { UserController } from "./user.controller";
       provide: "SUFFIX",
       useValue: "suffix"
     },
-    {
-      provide: LoggerService, // 这样写 token就是类本身 本质等价于 {provide: LoggerService, useClass: LoggerService}
-      useClass: LoggerService
-    },
+    LoggerService, // 这样写 token就是类本身 本质等价于 {provide: LoggerService, useClass: LoggerService}
     {
       provide: "UseValueService", // Token 也被称为标志 令牌 也就是privide的名字
       useValue: new UseValueService("custom useValueService") // 提供一个值
@@ -21,7 +18,7 @@ import { UserController } from "./user.controller";
     {
       provide: "UseFactoryService",
       inject: ["name", "SUFFIX"],
-      useFactory: (name: string, age: number) => new UseFactoryService(name, age)
+      useFactory: (name: string, suffix: string) => new UseFactoryService(name, suffix)
     },
     {
       provide: "UseClassService",

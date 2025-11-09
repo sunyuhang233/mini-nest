@@ -20,7 +20,7 @@ export class UseValueService {
 
 @Injectable()
 export class UseFactoryService {
-  constructor(private name: string, private age: number) { }
+  constructor(private name: string, private age: string) { }
   log(msg: string) {
     console.log('UseFactoryService:', msg, "my name is ", this.name, "my age is ", this.age)
   }

@@ -34,7 +34,8 @@ export class NestApplication {
         const inject = provider.inject || []
         this.providers.set(provider.provide, provider.useFactory(...inject.map(token => this.getProviderByToken(token))))
       } else {
-        this.providers.set(provider, new provider())
+        const dependencies = this.resolveDependencies(provider)
+        this.providers.set(provider, new provider(...dependencies))
       }
     }
   }
