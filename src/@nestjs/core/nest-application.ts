@@ -36,16 +36,30 @@ export class NestApplication {
   }
   resolveParams(controller: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) {
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
-    return paramsMetadata.sort((a, b) => a.parameterIndex - b.parameterIndex).map((item) => {
-      const { key } = item
+    return paramsMetadata.map((item) => {
+      const { key, data } = item
       switch (key) {
         case 'Request':
         case 'Req':
           return req
+        case "Query":
+          return data ? req.query[data] : req.query
+        case "Headers":
+          return data ? req.headers[data] : req.headers
+        case "Session":
+          // @ts-expect-error
+          return data ? req.session[data] : req.session
+        case "Ip":
+          return req.ip
+        case "Param":
+          return data ? req.params[data] : req.params
         default:
           return null
       }
     })
+  }
+  async use(middleware) {
+    this.app.use(middleware)
   }
   async listen(port: number) {
     await this.init()
