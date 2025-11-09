@@ -24,13 +24,28 @@ export class NestApplication {
         }
         const fullPath = path.posix.join("/", prefix, pathMetadata)
         this.app[httpMethod.toLowerCase()](fullPath, (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
-          const result = method.call(controller)
+          // 解析参数
+          const args = this.resolveParams(controller, methodName, req, res, next)
+          const result = method.call(controller, ...args)
           res.send(result)
         })
         Logger.log(`Mapped {${fullPath}}, ${httpMethod} route`, 'RoutesResolver');
       }
     }
     Logger.log("Nest application successfully started", 'NestApplication');
+  }
+  resolveParams(controller: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) {
+    const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
+    return paramsMetadata.sort((a, b) => a.parameterIndex - b.parameterIndex).map((item) => {
+      const { key } = item
+      switch (key) {
+        case 'Request':
+        case 'Req':
+          return req
+        default:
+          return null
+      }
+    })
   }
   async listen(port: number) {
     await this.init()
