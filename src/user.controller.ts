@@ -1,4 +1,4 @@
-import { Get, Controller, Req, Request, Query, Headers, Session, Ip, Param, Post, Body, Res, Response } from "@nestjs/common";
+import { Get, Controller, Req, Request, Query, Headers, Session, Ip, Param, Post, Body, Header, Res, Response, Next, Redirect, HttpCode } from "@nestjs/common";
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 @Controller('user')
 export class UserController {
@@ -58,7 +58,11 @@ export class UserController {
     return 'User Nest! '
   }
   @Post("register")
-  handleRegister(@Body() body: Record<string, any>, @Res() res: ExpressResponse) {
+  @HttpCode(200)
+  @Header("Cache-Control", "none")
+  @Header("key1", "value1")
+  @Header("key2", "value2")
+  handleRegister(@Body() body: Record<string, any>) {
     console.log(body)
     return 'aa'
   }
@@ -67,6 +71,23 @@ export class UserController {
     // 有的时候 我们只想添加一些响应头 而不是返回一个响应体
     res.setHeader('key', 'value')
     return 'aabb'
+  }
+  @Get('next')
+  handleNext(@Next() next) {
+    console.log('next')
+    next()
+  }
+  @Get('redirect')
+  @Redirect('/user/req', 301)
+  handleNext2() {
+
+  }
+
+  @Get('redirect2')
+  handleRedirect2(@Query("version") version: string) {
+    return {
+      url: `https://docs.nestjs.com/${version}/`,
+    }
   }
 }
 

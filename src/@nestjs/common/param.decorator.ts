@@ -26,3 +26,4 @@ export const Param = createParamDecorator('Param');
 export const Body = createParamDecorator('Body');
 export const Res = createParamDecorator('Res');
 export const Response = createParamDecorator('Response');
+export const Next = createParamDecorator('Next');

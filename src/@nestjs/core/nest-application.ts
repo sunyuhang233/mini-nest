@@ -21,6 +21,10 @@ export class NestApplication {
         const method = Reflect.getPrototypeOf(controller)[methodName]
         const httpMethod = Reflect.getMetadata("method", method)
         const pathMetadata = Reflect.getMetadata("path", method)
+        const redirectUrl = Reflect.getMetadata("redirectUrl", method)
+        const redirectStatusCode = Reflect.getMetadata("redirectStatusCode", method)
+        const statusCode = Reflect.getMetadata("statusCode", method) || 200
+        const headers = Reflect.getMetadata("headers", method) || []
         if (!httpMethod) {
           continue
         }
@@ -30,8 +34,26 @@ export class NestApplication {
           const args = this.resolveParams(controller, methodName, req, res, next)
           const result = method.call(controller, ...args)
           const responseMetadata = this.resolveResponseMetadata(controller, methodName)
-          // 没有注入 Response 装饰器 或者 开启 passthrough 模式 都由nest 处理响应
+          // 优先检查是否需要重定向（基于方法返回值）
+          if (result?.url) {
+            res.redirect(result.statusCode || 302, result.url)
+            return
+          }
+          // 其次检查是否有路由级别的重定向配置
+          if (redirectUrl) {
+            res.redirect(redirectStatusCode || 302, redirectUrl)
+            return
+          }
+          if (statusCode) {
+            res.statusCode = statusCode
+          } else if (httpMethod === 'POST') {
+            res.statusCode = 201
+          }
+          // 如果没有注入 Response 装饰器 或者 开启 passthrough 模式，则由Nest处理响应
           if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
+            headers.forEach((item) => {
+              res.setHeader(item.key, item.value)
+            })
             res.send(result)
           }
         })
@@ -64,6 +86,8 @@ export class NestApplication {
         case "Res":
         case "Response":
           return res
+        case "Next":
+          return next
         default:
           return null
       }
@@ -71,7 +95,7 @@ export class NestApplication {
   }
   resolveResponseMetadata(controller: any, methodName: string) {
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
-    return paramsMetadata.filter(Boolean).find((item) => item.key === 'Res' || item.key === 'Response')
+    return paramsMetadata.filter(Boolean).find((item) => item.key === 'Res' || item.key === 'Response' || item.key === 'Next')
   }
   async use(middleware) {
     this.app.use(middleware)
