@@ -1,3 +1,4 @@
+import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
@@ -5,6 +6,7 @@ import { LoggerService, UseValueService } from 'src/logger.service';
 import { CONSTRUCTOR_PARAMTYPES, INJECTED_TOKENS } from '@nestjs/common';
 export class NestApplication {
   private readonly app: Express = express();
+  private readonly providers = new Map<any, any>()
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
     this.app.use(express.urlencoded({ extended: true })) // 解析 urlencoded 格式的请求体
@@ -16,6 +18,25 @@ export class NestApplication {
       }
       next()
     })
+    // 注入providers
+    this.initProviders()
+  }
+  initProviders() {
+    const providers = Reflect.getMetadata("providers", this.module) || []
+    for (const provider of providers) {
+      if (provider.provide && provider.useClass) {
+        const dependencies = this.resolveDependencies(provider.useClass)
+        const classInstance = new provider.useClass(...dependencies)
+        this.providers.set(provider.provide, classInstance)
+      } else if (provider.provide && provider.useValue) {
+        this.providers.set(provider.provide, provider.useValue)
+      } else if (provider.provide && provider.useFactory) {
+        const inject = provider.inject || []
+        this.providers.set(provider.provide, provider.useFactory(...inject.map(token => this.getProviderByToken(token))))
+      } else {
+        this.providers.set(provider, new provider())
+      }
+    }
   }
   async init() {
     // 取出控制器 处理路由配置
@@ -124,12 +145,12 @@ export class NestApplication {
     // 获取构造函数的参数
     const constructorParams = Reflect.getMetadata(CONSTRUCTOR_PARAMTYPES, controller) || []
     return constructorParams.map((param, index) => {
-      if (index === 0) {
-        return new LoggerService()
-      } else if (index === 1) {
-        return new UseValueService()
-      }
+      //return this.providers.get(injectedTokens[index] || param)
+      return this.getProviderByToken(injectedTokens[index] || param)
     })
+  }
+  getProviderByToken(token: any) {
+    return this.providers.get(token) ?? token
   }
   async use(middleware) {
     this.app.use(middleware)
