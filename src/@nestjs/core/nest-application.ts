@@ -2,12 +2,13 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { LoggerService, UseValueService } from 'src/logger.service';
 import { CONSTRUCTOR_PARAMTYPES, INJECTED_TOKENS } from '@nestjs/common';
-export class NestApplication {
+export class NestApplication<T> {
+  // express 应用实例
   private readonly app: Express = express();
+  // 依赖注入容器
   private readonly providers = new Map<any, any>()
-  constructor(private readonly module: any) {
+  constructor(private readonly module: T) {
     this.app.use(express.json()) // 解析 json 格式的请求体
     this.app.use(express.urlencoded({ extended: true })) // 解析 urlencoded 格式的请求体
     this.app.use((req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
@@ -40,9 +41,10 @@ export class NestApplication {
     }
   }
   async init() {
-    // 取出控制器 处理路由配置
+    // 取出控制器
     const controllers = Reflect.getMetadata("controllers", this.module) || []
     Logger.log("AppModule dependencies initialized", 'InstanceLoader');
+    // 处理路由配置
     for (const Controller of controllers) {
       // 解析控制器的依赖注入
       const dependencies = this.resolveDependencies(Controller)
@@ -51,9 +53,13 @@ export class NestApplication {
       // 获取路由前缀
       const prefix = Reflect.getMetadata('prefix', controller.constructor) || '/'
       Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver');
+      // 处理控制器中的方法
       for (const methodName of Object.getOwnPropertyNames(Reflect.getPrototypeOf(controller))) {
+        // 拿到控制器中的每个函数
         const method = Reflect.getPrototypeOf(controller)[methodName]
+        // 拿到HTTP方法 
         const httpMethod = Reflect.getMetadata("method", method)
+        // 拿到路由路径
         const pathMetadata = Reflect.getMetadata("path", method)
         const redirectUrl = Reflect.getMetadata("redirectUrl", method)
         const redirectStatusCode = Reflect.getMetadata("redirectStatusCode", method)
@@ -62,7 +68,9 @@ export class NestApplication {
         if (!httpMethod) {
           continue
         }
+        // 拼接路由路径
         const fullPath = path.posix.join("/", prefix, pathMetadata)
+        // express 路由处理
         this.app[httpMethod.toLowerCase()](fullPath, (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
           // 解析参数
           const args = this.resolveParams(controller, methodName, req, res, next)
@@ -156,8 +164,14 @@ export class NestApplication {
   async use(middleware) {
     this.app.use(middleware)
   }
+  /**
+   * 启动应用程序并监听指定端口
+   * @param port 监听的端口号
+   */
   async listen(port: number) {
+    // 初始化应用程序
     await this.init()
+    // 监听指定端口
     this.app.listen(port, () => {
       Logger.log(`Application is running on http://localhost:${port}`, 'NestApplication');
     });

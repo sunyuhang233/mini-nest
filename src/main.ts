@@ -3,6 +3,7 @@ import { AppModule } from "./app.module";
 import session from 'express-session'
 
 async function bootstrap() {
+  // 创建一个 NestApplication 实例
   const app = await NestFactory.create(AppModule)
   await app.use(session({
     secret: "your_secret_key", //加密会话的密钥
@@ -12,6 +13,7 @@ async function bootstrap() {
       maxAge: 1000 * 60 * 60 * 24, // 会话cookie的过期时间，单位为毫秒
     },
   }))
+  // 启动应用程序并监听端口 3000
   await app.listen(3000);
 }
 
