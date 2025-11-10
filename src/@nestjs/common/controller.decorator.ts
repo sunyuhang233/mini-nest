@@ -1,3 +1,5 @@
+import { PREFIX } from "./constants"
+
 interface ControllerOptions {
   prefix?: string
 }
@@ -12,6 +14,6 @@ export function Controller(prefixOrOptions?: string | ControllerOptions): ClassD
     options = prefixOrOptions
   }
   return function (target: Function) {
-    Reflect.defineMetadata('prefix', options.prefix || '', target)
+    Reflect.defineMetadata(PREFIX, options.prefix || '', target)
   }
 }

@@ -40,6 +40,9 @@ export class NestApplication<T> {
       }
     }
   }
+  /**
+   * 初始化应用程序
+   */
   async init() {
     // 取出控制器
     const controllers = Reflect.getMetadata("controllers", this.module) || []
@@ -61,10 +64,15 @@ export class NestApplication<T> {
         const httpMethod = Reflect.getMetadata("method", method)
         // 拿到路由路径
         const pathMetadata = Reflect.getMetadata("path", method)
+        // 拿到重定向地址
         const redirectUrl = Reflect.getMetadata("redirectUrl", method)
+        // 拿到重定向状态码
         const redirectStatusCode = Reflect.getMetadata("redirectStatusCode", method)
+        // 拿到状态码
         const statusCode = Reflect.getMetadata("statusCode", method) || 200
+        // 拿到响应头
         const headers = Reflect.getMetadata("headers", method) || []
+        // 检查是否有HTTP方法
         if (!httpMethod) {
           continue
         }
@@ -74,7 +82,9 @@ export class NestApplication<T> {
         this.app[httpMethod.toLowerCase()](fullPath, (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
           // 解析参数
           const args = this.resolveParams(controller, methodName, req, res, next)
+          // 获取运行后结果
           const result = method.call(controller, ...args)
+          // 解析响应元数据（res response next 等信息）
           const responseMetadata = this.resolveResponseMetadata(controller, methodName)
           // 优先检查是否需要重定向（基于方法返回值）
           if (result?.url) {
@@ -86,6 +96,7 @@ export class NestApplication<T> {
             res.redirect(redirectStatusCode || 302, redirectUrl)
             return
           }
+          // 检查状态码
           if (statusCode) {
             res.statusCode = statusCode
           } else if (httpMethod === 'POST') {
@@ -93,9 +104,11 @@ export class NestApplication<T> {
           }
           // 如果没有注入 Response 装饰器 或者 开启 passthrough 模式，则由Nest处理响应
           if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
-            headers.forEach((item) => {
+            // 处理响应头
+            headers.forEach((item: { key: string, value: string }) => {
               res.setHeader(item.key, item.value)
             })
+            // 处理响应体
             res.send(result)
           }
         })
@@ -104,11 +117,23 @@ export class NestApplication<T> {
     }
     Logger.log("Nest application successfully started", 'NestApplication');
   }
-  resolveParams(controller: any, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) {
+  /**
+   * 解析参数
+   * @param controller 控制器实例
+   * @param methodName 方法名
+   * @param req 请求对象
+   * @param res 响应对象
+   * @param next 下一个中间件函数
+   * @returns 参数列表
+   */
+  resolveParams(controller: Function, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) {
+    // 获取参数列表
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
+    // 解析参数
     return paramsMetadata.map((item) => {
       const { key, data, factory } = item
-      const ctx = { // 因为nest不但支持http 还支持 graphql 微服务 web socket 等 兼容处理
+      // 因为nest不但支持http 还支持 graphql 微服务 web socket 等 兼容处理
+      const ctx = {
         switchToHttp: () => ({
           getRequest: () => req,
           getResponse: () => res,
@@ -144,11 +169,17 @@ export class NestApplication<T> {
       }
     })
   }
-  resolveResponseMetadata(controller: any, methodName: string) {
+  /**
+   * 解析响应元数据（res response next 等信息）
+   * @param controller 控制器实例
+   * @param methodName 方法名
+   * @returns 响应元数据
+   */
+  resolveResponseMetadata(controller: Function, methodName: string) {
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
     return paramsMetadata.filter(Boolean).find((item) => item.key === 'Res' || item.key === 'Response' || item.key === 'Next')
   }
-  resolveDependencies(controller: any) {
+  resolveDependencies(controller: Function) {
     // 注入的token
     const injectedTokens = Reflect.getMetadata(INJECTED_TOKENS, controller) || []
     // 获取构造函数的参数
@@ -158,10 +189,14 @@ export class NestApplication<T> {
       return this.getProviderByToken(injectedTokens[index] || param)
     })
   }
-  getProviderByToken(token: any) {
+  getProviderByToken(token: string | symbol) {
     return this.providers.get(token) ?? token
   }
-  async use(middleware) {
+  /**
+   * 注册中间件
+   * @param middleware 中间件函数
+   */
+  async use(middleware: any) {
     this.app.use(middleware)
   }
   /**

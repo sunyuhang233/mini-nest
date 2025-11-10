@@ -1,2 +1,5 @@
 export const INJECTED_TOKENS = "injectedTokens"
 export const CONSTRUCTOR_PARAMTYPES = "design:paramtypes"
+export const CONTROLLERS = "controllers"
+export const PREFIX = "prefix"
+export const METHOD = "method"
