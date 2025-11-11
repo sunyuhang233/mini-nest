@@ -22,18 +22,25 @@ export class NestApplication<T> {
     // 注入providers
     this.initProviders()
   }
+  /**
+   * 初始化依赖注入容器
+   */
   initProviders() {
     const providers = Reflect.getMetadata("providers", this.module) || []
     for (const provider of providers) {
+      // 1.写法为{provide: 'token', useClass: MyService}
       if (provider.provide && provider.useClass) {
         const dependencies = this.resolveDependencies(provider.useClass)
         const classInstance = new provider.useClass(...dependencies)
         this.providers.set(provider.provide, classInstance)
+        // 2.写法为{provide: MyService, useValue: new MyService()}
       } else if (provider.provide && provider.useValue) {
         this.providers.set(provider.provide, provider.useValue)
+        // 3.写法为{provide: MyService, useFactory: () => new MyService()}
       } else if (provider.provide && provider.useFactory) {
         const inject = provider.inject || []
         this.providers.set(provider.provide, provider.useFactory(...inject.map(token => this.getProviderByToken(token))))
+        // 4.其他写法
       } else {
         const dependencies = this.resolveDependencies(provider)
         this.providers.set(provider, new provider(...dependencies))
@@ -179,6 +186,11 @@ export class NestApplication<T> {
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
     return paramsMetadata.filter(Boolean).find((item) => item.key === 'Res' || item.key === 'Response' || item.key === 'Next')
   }
+  /**
+   * 解析依赖注入
+   * @param controller 控制器实例
+   * @returns 依赖注入的实例列表
+   */
   resolveDependencies(controller: Function) {
     // 注入的token
     const injectedTokens = Reflect.getMetadata(INJECTED_TOKENS, controller) || []
@@ -189,6 +201,11 @@ export class NestApplication<T> {
       return this.getProviderByToken(injectedTokens[index] || param)
     })
   }
+  /**
+   * 根据token获取依赖注入的实例
+   * @param token 依赖注入的token
+   * @returns 依赖注入的实例
+   */
   getProviderByToken(token: string | symbol) {
     return this.providers.get(token) ?? token
   }
