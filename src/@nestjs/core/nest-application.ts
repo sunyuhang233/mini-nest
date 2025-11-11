@@ -26,25 +26,65 @@ export class NestApplication<T> {
    * 初始化依赖注入容器
    */
   initProviders() {
-    const providers = Reflect.getMetadata("providers", this.module) || []
-    for (const provider of providers) {
-      // 1.写法为{provide: 'token', useClass: MyService}
-      if (provider.provide && provider.useClass) {
-        const dependencies = this.resolveDependencies(provider.useClass)
-        const classInstance = new provider.useClass(...dependencies)
-        this.providers.set(provider.provide, classInstance)
-        // 2.写法为{provide: MyService, useValue: new MyService()}
-      } else if (provider.provide && provider.useValue) {
-        this.providers.set(provider.provide, provider.useValue)
-        // 3.写法为{provide: MyService, useFactory: () => new MyService()}
-      } else if (provider.provide && provider.useFactory) {
-        const inject = provider.inject || []
-        this.providers.set(provider.provide, provider.useFactory(...inject.map(token => this.getProviderByToken(token))))
-        // 4.其他写法
-      } else {
-        const dependencies = this.resolveDependencies(provider)
-        this.providers.set(provider, new provider(...dependencies))
+    // const providers = Reflect.getMetadata("providers", this.module) || []
+    // for (const provider of providers) {
+    //   // 1.写法为{provide: 'token', useClass: MyService}
+    //   if (provider.provide && provider.useClass) {
+    //     const dependencies = this.resolveDependencies(provider.useClass)
+    //     const classInstance = new provider.useClass(...dependencies)
+    //     this.providers.set(provider.provide, classInstance)
+    //     // 2.写法为{provide: MyService, useValue: new MyService()}
+    //   } else if (provider.provide && provider.useValue) {
+    //     this.providers.set(provider.provide, provider.useValue)
+    //     // 3.写法为{provide: MyService, useFactory: () => new MyService()}
+    //   } else if (provider.provide && provider.useFactory) {
+    //     const inject = provider.inject || []
+    //     this.providers.set(provider.provide, provider.useFactory(...inject.map(token => this.getProviderByToken(token))))
+    //     // 4.其他写法
+    //   } else {
+    //     const dependencies = this.resolveDependencies(provider)
+    //     this.providers.set(provider, new provider(...dependencies))
+    //   }
+    // }
+    // 初始化imports
+    const imports = Reflect.getMetadata("imports", this.module) || []
+    // 遍历导入的模块
+    for (const importedModule of imports) {
+      // 获取模块的providers
+      const providers = Reflect.getMetadata("providers", importedModule) || []
+      // 遍历添加到providers
+      for (const provider of providers) {
+        this.addProvider(provider)
       }
+    }
+    // 获取当前模块的providers
+    const providers = Reflect.getMetadata("providers", this.module) || []
+    // 遍历添加到providers
+    for (const provider of providers) {
+      this.addProvider(provider)
+    }
+  }
+  /**
+   * 添加一个provider到依赖注入容器
+   * @param provider 
+   */
+  addProvider(provider: any) {
+    // 1.写法为{provide: 'token', useClass: MyService}
+    if (provider.provide && provider.useClass) {
+      const dependencies = this.resolveDependencies(provider.useClass)
+      const classInstance = new provider.useClass(...dependencies)
+      this.providers.set(provider.provide, classInstance)
+      // 2.写法为{provide: MyService, useValue: new MyService()}
+    } else if (provider.provide && provider.useValue) {
+      this.providers.set(provider.provide, provider.useValue)
+      // 3.写法为{provide: MyService, useFactory: () => new MyService()}
+    } else if (provider.provide && provider.useFactory) {
+      const inject = provider.inject || []
+      this.providers.set(provider.provide, provider.useFactory(...inject.map(token => this.getProviderByToken(token))))
+      // 4.其他写法
+    } else {
+      const dependencies = this.resolveDependencies(provider)
+      this.providers.set(provider, new provider(...dependencies))
     }
   }
   /**
