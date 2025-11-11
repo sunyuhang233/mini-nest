@@ -22,5 +22,6 @@ import { UseClassService, LoggerService, UseValueService, UseFactoryService } fr
     },
   ],
   controllers: [],
+  exports: [LoggerService, "UseClassService", "UseFactoryService"],
 })
 export class LoggerModule { }

@@ -26,36 +26,11 @@ export class NestApplication<T> {
    * 初始化依赖注入容器
    */
   initProviders() {
-    // const providers = Reflect.getMetadata("providers", this.module) || []
-    // for (const provider of providers) {
-    //   // 1.写法为{provide: 'token', useClass: MyService}
-    //   if (provider.provide && provider.useClass) {
-    //     const dependencies = this.resolveDependencies(provider.useClass)
-    //     const classInstance = new provider.useClass(...dependencies)
-    //     this.providers.set(provider.provide, classInstance)
-    //     // 2.写法为{provide: MyService, useValue: new MyService()}
-    //   } else if (provider.provide && provider.useValue) {
-    //     this.providers.set(provider.provide, provider.useValue)
-    //     // 3.写法为{provide: MyService, useFactory: () => new MyService()}
-    //   } else if (provider.provide && provider.useFactory) {
-    //     const inject = provider.inject || []
-    //     this.providers.set(provider.provide, provider.useFactory(...inject.map(token => this.getProviderByToken(token))))
-    //     // 4.其他写法
-    //   } else {
-    //     const dependencies = this.resolveDependencies(provider)
-    //     this.providers.set(provider, new provider(...dependencies))
-    //   }
-    // }
     // 初始化imports
     const imports = Reflect.getMetadata("imports", this.module) || []
     // 遍历导入的模块
     for (const importedModule of imports) {
-      // 获取模块的providers
-      const providers = Reflect.getMetadata("providers", importedModule) || []
-      // 遍历添加到providers
-      for (const provider of providers) {
-        this.addProvider(provider)
-      }
+      this.registerProvidersFromModule(importedModule);
     }
     // 获取当前模块的providers
     const providers = Reflect.getMetadata("providers", this.module) || []
@@ -65,8 +40,34 @@ export class NestApplication<T> {
     }
   }
   /**
+   * 从模块中注册providers
+   * @param module 要注册providers的模块
+   */
+  registerProvidersFromModule(module: any) {
+    const providers = Reflect.getMetadata("providers", module) || []
+    const exports = Reflect.getMetadata('exports', module) || [];
+    for (const exportToken of exports) {
+      // 判断是否是模块 如果是模块 则递归注册providers
+      if (this.isModule(exportToken)) {
+        this.registerProvidersFromModule(exportToken)
+      } else {
+        // 不是模块 则直接添加到providers
+        const provider = providers.find(provider => provider === exportToken || provider.provide === exportToken);
+        if (provider) this.addProvider(provider);
+      }
+    }
+  }
+  /**
+   * 判断是否为模块
+   * @param injectToken 要判断的token
+   * @returns 是否为模块
+   */
+  isModule(injectToken) {
+    return injectToken && injectToken instanceof Function && Reflect.getMetadata('isModule', injectToken)
+  }
+  /**
    * 添加一个provider到依赖注入容器
-   * @param provider 
+   * @param provider 要添加的provider
    */
   addProvider(provider: any) {
     // 1.写法为{provide: 'token', useClass: MyService}
