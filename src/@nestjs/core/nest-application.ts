@@ -56,6 +56,9 @@ export class NestApplication<T> {
         if (provider) this.addProvider(provider);
       }
     }
+    for (const provider of providers) {
+      this.addProvider(provider)
+    }
   }
   /**
    * 判断是否为模块
