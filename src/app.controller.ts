@@ -1,8 +1,9 @@
 import { Get, Controller, Inject } from "./@nestjs/common";
 import { LoggerService, UseClassService, UseFactoryService, UseValueService } from "./logger.service";
+import { OtherService } from "./other.service";
 @Controller()
 export class AppController {
-  constructor(private loggerService: LoggerService, @Inject("UseClassService") private useClassService: UseClassService, @Inject("UseFactoryService") private useFactoryService: UseFactoryService) { }
+  constructor(private otherService: OtherService) { }
   @Get()
   index() {
     return 'Hello World Nest!';
@@ -13,9 +14,7 @@ export class AppController {
   }
   @Get("log")
   log() {
-    this.loggerService.log("app controller log")
-    this.useClassService.log("app controller useClassService log")
-    this.useFactoryService.log("app controller useFactoryService log")
+    this.otherService.log("app controller otherService log")
     return 'Hello Nest!';
   }
 }

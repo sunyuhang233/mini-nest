@@ -3,7 +3,6 @@ import { Inject, Injectable } from "./@nestjs/common";
 @Injectable()
 export class LoggerService {
   constructor(@Inject("SUFFIX") private suffix: string) {
-    console.log('LoggerService constructor', this.suffix)
   }
   log(msg: string) {
     console.log('LoggerService:', msg, this.suffix)
