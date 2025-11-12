@@ -1,7 +1,8 @@
-import { Module } from "./@nestjs/common";
+import { Module, MiddlewareConsumer, NestModule, RequestMethod } from "./@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { DynamicConfigModule } from "./dynamicConfig.module";
+import { LoggerMiddleware } from "./logger.middleware";
 
 @Module({
   imports: [DynamicConfigModule.forRoot('1000abc')],
@@ -9,4 +10,8 @@ import { DynamicConfigModule } from "./dynamicConfig.module";
   providers: [AppService],
   exports: [AppService],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes({ path: '/helloWorld', method: RequestMethod.PATCH })
+  }
+}

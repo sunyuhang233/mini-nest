@@ -2,8 +2,8 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { CONSTRUCTOR_PARAMTYPES, defineModule, INJECTED_TOKENS } from '@nestjs/common';
-export class NestApplication<T> {
+import { CONSTRUCTOR_PARAMTYPES, defineModule, INJECTED_TOKENS, RequestMethod } from '@nestjs/common';
+export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();
   // 依赖注入容器
@@ -14,7 +14,9 @@ export class NestApplication<T> {
   private readonly moduleProviders = new Map<any, any>()
   // 记录全局providers的token
   private readonly globalProviders = new Set();
-  constructor(private readonly module: T) {
+  // 记录中间件
+  private readonly middlewares = []
+  constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
     this.app.use(express.urlencoded({ extended: true })) // 解析 urlencoded 格式的请求体
     this.app.use((req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
@@ -25,6 +27,50 @@ export class NestApplication<T> {
       }
       next()
     })
+    this.initMiddlewares()
+  }
+  /**
+   * 初始化中间件
+   */
+  initMiddlewares() {
+    this.module.prototype.configure?.(this)
+  }
+  apply(...mids: any[]) {
+    this.middlewares.push(...mids)
+    return this
+  }
+  forRoutes(...routes) {
+    for (const route of routes) {
+      for (const mid of this.middlewares) {
+        const { routePath, routeMethod } = this.normalizeRouteInfo(route)
+        this.app.use(routePath, (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
+          if (routeMethod === RequestMethod.ALL || routeMethod === req.method) {
+            const middlewareInstance = this.getMiddlewareInstance(mid)
+            middlewareInstance.use(req, res, next)
+          } else {
+            next()
+          }
+        })
+      }
+    }
+  }
+  getMiddlewareInstance(mid) {
+    if (mid instanceof Function) {
+      return new mid()
+    }
+    return mid
+  }
+  normalizeRouteInfo(route: any) {
+    let routePath = ''
+    let routeMethod = RequestMethod.ALL
+    if (typeof route === 'string') {
+      routePath = route
+    } else if ('path' in route) {
+      routePath = route.path
+      routeMethod = route.method || RequestMethod.ALL
+    }
+    routePath = path.posix.join('/', routePath)
+    return { routePath, routeMethod }
   }
   /**
    * 初始化依赖注入容器
