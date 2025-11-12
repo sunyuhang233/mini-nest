@@ -2,7 +2,7 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { CONSTRUCTOR_PARAMTYPES, INJECTED_TOKENS } from '@nestjs/common';
+import { CONSTRUCTOR_PARAMTYPES, defineModule, INJECTED_TOKENS } from '@nestjs/common';
 export class NestApplication<T> {
   // express 应用实例
   private readonly app: Express = express();
@@ -36,7 +36,26 @@ export class NestApplication<T> {
     const imports = Reflect.getMetadata("imports", this.module) || []
     // 遍历导入的模块
     for (const importedModule of imports) {
-      this.registerProvidersFromModule(importedModule, this.module);
+      // 区分是否是动态模块 根据module属性来区分
+      if ('module' in importedModule) {
+        // 获取动态模块的providers和exports
+        const { module, providers, exports, controllers } = importedModule
+        // 合并动态模块的providers和exports
+        const newProviders = [...(Reflect.getMetadata("providers", module) || []), ...(providers || [])]
+        const newExports = [...(Reflect.getMetadata("exports", module) || []), ...(exports || [])]
+        // 合并动态模块的controllers
+        const newControllers = [...(Reflect.getMetadata("controllers", module) || []), ...(controllers || [])]
+        // 更新动态模块的providers和exports
+        defineModule(module, newProviders)
+        defineModule(module, newControllers)
+        // 更新动态模块的controllers
+        Reflect.defineMetadata("controllers", newControllers, module)
+        Reflect.defineMetadata("providers", newProviders, module)
+        Reflect.defineMetadata("exports", newExports, module)
+        this.registerProvidersFromModule(module, this.module);
+      } else {
+        this.registerProvidersFromModule(importedModule, this.module);
+      }
     }
     // 获取当前模块的providers
     const providers = Reflect.getMetadata("providers", this.module) || []

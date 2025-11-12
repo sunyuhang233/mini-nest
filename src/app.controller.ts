@@ -1,20 +1,24 @@
-import { Get, Controller, Inject } from "./@nestjs/common";
-import { LoggerService, UseClassService, UseFactoryService, UseValueService } from "./logger.service";
-import { OtherService } from "./other.service";
+import { Get, Controller } from "./@nestjs/common";
+import { AppService } from "./app.service";
 @Controller()
 export class AppController {
-  constructor(private otherService: OtherService) { }
-  @Get()
-  index() {
-    return 'Hello World Nest!';
-  }
-  @Get('hello')
-  hello() {
-    return 'Hello Nest!';
-  }
-  @Get("log")
-  log() {
-    this.otherService.log("app controller otherService log")
-    return 'Hello Nest!';
+  constructor(private appService: AppService) { }
+  // @Get()
+  // index() {
+  //   return 'Hello World Nest!';
+  // }
+  // @Get('hello')
+  // hello() {
+  //   return 'Hello Nest!';
+  // }
+  // @Get("log")
+  // log() {
+  //   this.otherService.log("app controller otherService log")
+  //   return 'Hello Nest!';
+  // }
+  @Get("helloWorld")
+  helloWorld() {
+    console.log("app controller helloWorld")
+    return this.appService.getHello();
   }
 }

@@ -45,3 +45,10 @@ export function Global(): ClassDecorator {
     Reflect.defineMetadata('global', true, target)
   }
 }
+
+/**
+ * 动态模块
+ */
+export interface DynamicModule extends ModuleMetadata {
+  module: Function
+}

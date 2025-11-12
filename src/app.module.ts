@@ -1,11 +1,12 @@
 import { Module } from "./@nestjs/common";
 import { AppController } from "./app.controller";
-import { LoggerModule } from "./logger.module";
-import { OtherModule } from "./other.module";
+import { AppService } from "./app.service";
+import { DynamicConfigModule } from "./dynamicConfig.module";
 
 @Module({
-  imports: [LoggerModule, OtherModule],
+  imports: [DynamicConfigModule.forRoot()],
   controllers: [AppController],
-  providers: [],
+  providers: [AppService],
+  exports: [AppService],
 })
 export class AppModule { }
