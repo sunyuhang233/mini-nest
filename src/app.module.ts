@@ -4,7 +4,7 @@ import { AppService } from "./app.service";
 import { DynamicConfigModule } from "./dynamicConfig.module";
 
 @Module({
-  imports: [DynamicConfigModule.forRoot()],
+  imports: [DynamicConfigModule.forRoot('1000abc')],
   controllers: [AppController],
   providers: [AppService],
   exports: [AppService],

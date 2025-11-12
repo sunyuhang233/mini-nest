@@ -5,17 +5,27 @@ import { Module, DynamicModule } from '@nestjs/common';
   exports: ['Token'],
 })
 export class DynamicConfigModule {
-  static forRoot(): DynamicModule {
+  static forRoot(data?: any): DynamicModule | Promise<DynamicModule> {
     const providers: any = [
       {
         provide: 'CONFIG',
-        useValue: { apiKey: '123' }
+        useValue: { apiKey: data }
       }
     ];
-    return {
-      module: DynamicConfigModule,
-      providers,
-      exports: providers.map(provider => (provider instanceof Function ? provider : provider.provide))
-    };
+    // return {
+    //   module: DynamicConfigModule,
+    //   providers,
+    //   exports: providers.map(provider => (provider instanceof Function ? provider : provider.provide))
+    // };
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve({
+          module: DynamicConfigModule,
+          providers,
+          exports: providers.map(provider => (provider instanceof Function ? provider : provider.provide))
+        });
+      }, 3000);
+    });
   }
 }

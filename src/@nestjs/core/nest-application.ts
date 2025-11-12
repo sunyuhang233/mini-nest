@@ -25,21 +25,24 @@ export class NestApplication<T> {
       }
       next()
     })
-    // 注入providers
-    this.initProviders()
   }
   /**
    * 初始化依赖注入容器
    */
-  initProviders() {
+  async initProviders() {
     // 初始化imports
     const imports = Reflect.getMetadata("imports", this.module) || []
     // 遍历导入的模块
-    for (const importedModule of imports) {
+    for (const importModule of imports) {
+      let importModuleOrPromise = importModule
+      // 如果导入的是一个promise 则等待它resolve
+      if (importModuleOrPromise instanceof Promise) {
+        importModuleOrPromise = await importModuleOrPromise
+      }
       // 区分是否是动态模块 根据module属性来区分
-      if ('module' in importedModule) {
+      if ('module' in importModuleOrPromise) {
         // 获取动态模块的providers和exports
-        const { module, providers, exports, controllers } = importedModule
+        const { module, providers, exports, controllers } = importModuleOrPromise
         // 合并动态模块的providers和exports
         const newProviders = [...(Reflect.getMetadata("providers", module) || []), ...(providers || [])]
         const newExports = [...(Reflect.getMetadata("exports", module) || []), ...(exports || [])]
@@ -54,7 +57,7 @@ export class NestApplication<T> {
         Reflect.defineMetadata("exports", newExports, module)
         this.registerProvidersFromModule(module, this.module);
       } else {
-        this.registerProvidersFromModule(importedModule, this.module);
+        this.registerProvidersFromModule(importModuleOrPromise, this.module);
       }
     }
     // 获取当前模块的providers
@@ -319,6 +322,8 @@ export class NestApplication<T> {
    * @param port 监听的端口号
    */
   async listen(port: number) {
+    // 注入providers
+    await this.initProviders()
     // 初始化应用程序
     await this.init()
     // 监听指定端口
