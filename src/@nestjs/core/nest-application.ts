@@ -27,18 +27,27 @@ export class NestApplication {
       }
       next()
     })
-    this.initMiddlewares()
   }
   /**
    * 初始化中间件
    */
-  initMiddlewares() {
-    this.module.prototype.configure?.(this)
+  async initMiddlewares() {
+    await this.module.prototype.configure?.(this)
   }
+  /**
+   * 应用中间件
+   * @param mids 中间件数组
+   * @returns 
+   */
   apply(...mids: any[]) {
+    defineModule(this.module, mids)
     this.middlewares.push(...mids)
     return this
   }
+  /**
+   * 应用中间件到指定路由
+   * @param routes 路由数组
+   */
   forRoutes(...routes) {
     for (const route of routes) {
       for (const mid of this.middlewares) {
@@ -54,12 +63,23 @@ export class NestApplication {
       }
     }
   }
+  /**
+   * 获取中间件实例
+   * @param mid 中间件类或函数
+   * @returns 中间件实例
+   */
   getMiddlewareInstance(mid) {
     if (mid instanceof Function) {
-      return new mid()
+      const dependencies = this.resolveDependencies(mid)
+      return new mid(...dependencies)
     }
     return mid
   }
+  /**
+   * 解析路由信息
+   * @param route 路由对象
+   * @returns 路由路径和方法
+   */
   normalizeRouteInfo(route: any) {
     let routePath = ''
     let routeMethod = RequestMethod.ALL
@@ -370,6 +390,8 @@ export class NestApplication {
   async listen(port: number) {
     // 注入providers
     await this.initProviders()
+    // 初始化中间件
+    await this.initMiddlewares()
     // 初始化应用程序
     await this.init()
     // 监听指定端口
