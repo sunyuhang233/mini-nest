@@ -1,6 +1,6 @@
 import { Get, Controller } from "./@nestjs/common";
 import { AppService } from "./app.service";
-@Controller()
+@Controller("app")
 export class AppController {
   constructor(private appService: AppService) { }
   // @Get()
@@ -20,5 +20,10 @@ export class AppController {
   helloWorld() {
     console.log("app controller helloWorld")
     return this.appService.getHello();
+  }
+
+  @Get("abcde")
+  abcde() {
+    return "abcde"
   }
 }

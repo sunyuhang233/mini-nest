@@ -16,6 +16,8 @@ export class NestApplication {
   private readonly globalProviders = new Set();
   // 记录中间件
   private readonly middlewares = []
+  // 记录排除的路由
+  private readonly excludedRoutes = []
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
     this.app.use(express.urlencoded({ extended: true })) // 解析 urlencoded 格式的请求体
@@ -27,6 +29,15 @@ export class NestApplication {
       }
       next()
     })
+  }
+  /**
+   * 排除指定路由
+   * @param routes 路由数组
+   * @returns 
+   */
+  exclude(...routes) {
+    this.excludedRoutes.push(...routes.map(this.normalizeRouteInfo))
+    return this
   }
   /**
    * 初始化中间件
@@ -54,6 +65,11 @@ export class NestApplication {
         const { routePath, routeMethod } = this.normalizeRouteInfo(route)
         this.app.use(routePath, (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
           if (routeMethod === RequestMethod.ALL || routeMethod === req.method) {
+            // 如果路由在排除列表中 则跳过
+            if (this.isExcluded(req.originalUrl, req.method as RequestMethod)) {
+              next()
+              return
+            }
             const middlewareInstance = this.getMiddlewareInstance(mid)
             middlewareInstance.use(req, res, next)
           } else {
@@ -62,6 +78,19 @@ export class NestApplication {
         })
       }
     }
+    return this
+  }
+  /**
+   * 判断路由是否被排除
+   * @param routePath 路由路径
+   * @param routeMethod 路由方法
+   * @returns 是否被排除
+   */
+  isExcluded(routePath: string, routeMethod: RequestMethod) {
+    return this.excludedRoutes.some((route) => {
+      const { routePath: excludedPath, routeMethod: excludedMethod } = route
+      return routePath === excludedPath && (excludedMethod === RequestMethod.ALL || excludedMethod === routeMethod)
+    })
   }
   /**
    * 获取中间件实例
@@ -88,6 +117,8 @@ export class NestApplication {
     } else if ('path' in route) {
       routePath = route.path
       routeMethod = route.method || RequestMethod.ALL
+    } else if (route instanceof Function) {
+      routePath = Reflect.getMetadata("prefix", route) || ""
     }
     routePath = path.posix.join('/', routePath)
     return { routePath, routeMethod }

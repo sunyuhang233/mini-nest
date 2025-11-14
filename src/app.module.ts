@@ -12,6 +12,14 @@ import { LoggerMiddleware } from "./logger.middleware";
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggerMiddleware).forRoutes({ path: '/helloWorld', method: RequestMethod.GET })
+    consumer.apply(LoggerMiddleware)
+      //.forRoutes({ path: '/helloWorld', method: RequestMethod.GET })
+      // 路由通配符
+      //.forRoutes("ab*de")
+      .forRoutes(AppController)
+      .exclude(
+        { path: '/app/abcde', method: RequestMethod.GET },
+      )
+
   }
 }
