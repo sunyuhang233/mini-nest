@@ -14,7 +14,7 @@ export class NestApplication {
   private readonly moduleProviders = new Map<any, any>()
   // 记录全局providers的token
   private readonly globalProviders = new Set();
-  // 记录中间件
+  // 记录中间件 可能是中间件的类 也可能是中间件的实例 也可能是函数中间件
   private readonly middlewares = []
   // 记录排除的路由
   private readonly excludedRoutes = []
@@ -64,14 +64,21 @@ export class NestApplication {
       for (const mid of this.middlewares) {
         const { routePath, routeMethod } = this.normalizeRouteInfo(route)
         this.app.use(routePath, (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
+          // 如果路由在排除列表中 则跳过
+          if (this.isExcluded(req.originalUrl, req.method as RequestMethod)) {
+            next()
+            return
+          }
           if (routeMethod === RequestMethod.ALL || routeMethod === req.method) {
-            // 如果路由在排除列表中 则跳过
-            if (this.isExcluded(req.originalUrl, req.method as RequestMethod)) {
+            // 可能是中间件的类 也可能是中间件的实例 也可能是函数中间件
+            if ('use' in mid.prototype || 'use' in mid) {
+              const middlewareInstance = this.getMiddlewareInstance(mid)
+              middlewareInstance.use(req, res, next)
+            } else if (mid instanceof Function) {
+              mid(req, res, next)
+            } else {
               next()
-              return
             }
-            const middlewareInstance = this.getMiddlewareInstance(mid)
-            middlewareInstance.use(req, res, next)
           } else {
             next()
           }
