@@ -3,6 +3,12 @@ import { AppController } from "./app.controller";
 import { ExceptionController } from "./exception.controller";
 
 @Module({
+  providers: [
+    {
+      provide: "PROVIDE",
+      useValue: "PROVIDE_VALUE",
+    }
+  ],
   controllers: [AppController, ExceptionController],
 })
 export class AppModule { }

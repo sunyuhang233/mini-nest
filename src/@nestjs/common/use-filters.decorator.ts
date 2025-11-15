@@ -1,4 +1,5 @@
 import "reflect-metadata"
+import { defineModule } from "./module.decorator"
 
 export function UseFilters(...filters: any[]) {
   return function (target: object | Function, propertyKey?: string, descriptor?: PropertyDescriptor) {

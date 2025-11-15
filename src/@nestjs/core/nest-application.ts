@@ -33,6 +33,7 @@ export class NestApplication {
       }
       next()
     })
+    defineModule(this.module, [this.defaultGlobalExceptionFilter])
   }
   /**
    * 添加全局异常过滤器
@@ -41,6 +42,7 @@ export class NestApplication {
    */
   useGlobalFilters(...filters: GlobalHttpExceptionFilter[]) {
     this.globalHttpExceptionFilters.push(...filters)
+    defineModule(this.module, filters.filter((filter) => filter instanceof Function))
     return this
   }
   /**
@@ -274,6 +276,7 @@ export class NestApplication {
       const controller = new Controller(...dependencies)
       // 获取控制器的异常过滤器
       const controllerFilters = Reflect.getMetadata('filters', controller.constructor) || []
+      defineModule(this.module, controllerFilters)
       // 获取路由前缀
       const prefix = Reflect.getMetadata('prefix', controller.constructor) || '/'
       Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver');
@@ -283,6 +286,7 @@ export class NestApplication {
         const method = Reflect.getPrototypeOf(controller)[methodName]
         // 获取方法的异常过滤器
         const methodFilters = Reflect.getMetadata('filters', method) || []
+        defineModule(this.module, methodFilters)
         // 合并控制器和方法的异常过滤器
         const allFilters = [...methodFilters, ...controllerFilters]
         // 拿到HTTP方法 
