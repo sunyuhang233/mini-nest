@@ -2,7 +2,7 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { CONSTRUCTOR_PARAMTYPES, defineModule, INJECTED_TOKENS, RequestMethod } from '@nestjs/common';
+import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, GlobalHttpExceptionFilter, INJECTED_TOKENS, RequestMethod } from '@nestjs/common';
 export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();
@@ -18,6 +18,10 @@ export class NestApplication {
   private readonly middlewares = []
   // 记录排除的路由
   private readonly excludedRoutes = []
+  // 添加全局异常过滤器
+  private defaultGlobalExceptionFilter = new GlobalHttpExceptionFilter()
+  // 全局异常过滤器数组
+  private globalHttpExceptionFilters = []
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
     this.app.use(express.urlencoded({ extended: true })) // 解析 urlencoded 格式的请求体
@@ -29,6 +33,15 @@ export class NestApplication {
       }
       next()
     })
+  }
+  /**
+   * 添加全局异常过滤器
+   * @param filters 异常过滤器数组
+   * @returns 
+   */
+  useGlobalFilters(...filters: GlobalHttpExceptionFilter[]) {
+    this.globalHttpExceptionFilters.push(...filters)
+    return this
   }
   /**
    * 排除指定路由
@@ -259,6 +272,8 @@ export class NestApplication {
       const dependencies = this.resolveDependencies(Controller)
       // 创建每个控制器的实例
       const controller = new Controller(...dependencies)
+      // 获取控制器的异常过滤器
+      const controllerFilters = Reflect.getMetadata('filters', controller.constructor) || []
       // 获取路由前缀
       const prefix = Reflect.getMetadata('prefix', controller.constructor) || '/'
       Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver');
@@ -266,6 +281,10 @@ export class NestApplication {
       for (const methodName of Object.getOwnPropertyNames(Reflect.getPrototypeOf(controller))) {
         // 拿到控制器中的每个函数
         const method = Reflect.getPrototypeOf(controller)[methodName]
+        // 获取方法的异常过滤器
+        const methodFilters = Reflect.getMetadata('filters', method) || []
+        // 合并控制器和方法的异常过滤器
+        const allFilters = [...methodFilters, ...controllerFilters]
         // 拿到HTTP方法 
         const httpMethod = Reflect.getMetadata("method", method)
         // 拿到路由路径
@@ -286,42 +305,85 @@ export class NestApplication {
         const fullPath = path.posix.join("/", prefix, pathMetadata)
         // express 路由处理
         this.app[httpMethod.toLowerCase()](fullPath, (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
-          // 解析参数
-          const args = this.resolveParams(controller, methodName, req, res, next)
-          // 获取运行后结果
-          const result = method.call(controller, ...args)
-          // 解析响应元数据（res response next 等信息）
-          const responseMetadata = this.resolveResponseMetadata(controller, methodName)
-          // 优先检查是否需要重定向（基于方法返回值）
-          if (result?.url) {
-            res.redirect(result.statusCode || 302, result.url)
-            return
-          }
-          // 其次检查是否有路由级别的重定向配置
-          if (redirectUrl) {
-            res.redirect(redirectStatusCode || 302, redirectUrl)
-            return
-          }
-          // 检查状态码
-          if (statusCode) {
-            res.statusCode = statusCode
-          } else if (httpMethod === 'POST') {
-            res.statusCode = 201
-          }
-          // 如果没有注入 Response 装饰器 或者 开启 passthrough 模式，则由Nest处理响应
-          if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
-            // 处理响应头
-            headers.forEach((item: { key: string, value: string }) => {
-              res.setHeader(item.key, item.value)
+          const ctx = {
+            switchToHttp: () => ({
+              getRequest: () => req,
+              getResponse: () => res,
+              getNext: () => next,
             })
-            // 处理响应体
-            res.send(result)
+          }
+          try {
+            // 解析参数
+            const args = this.resolveParams(controller, methodName, req, res, next)
+            // 获取运行后结果
+            const result = method.call(controller, ...args)
+            // 解析响应元数据（res response next 等信息）
+            const responseMetadata = this.resolveResponseMetadata(controller, methodName)
+            // 优先检查是否需要重定向（基于方法返回值）
+            if (result?.url) {
+              res.redirect(result.statusCode || 302, result.url)
+              return
+            }
+            // 其次检查是否有路由级别的重定向配置
+            if (redirectUrl) {
+              res.redirect(redirectStatusCode || 302, redirectUrl)
+              return
+            }
+            // 检查状态码
+            if (statusCode) {
+              res.statusCode = statusCode
+            } else if (httpMethod === 'POST') {
+              res.statusCode = 201
+            }
+            // 如果没有注入 Response 装饰器 或者 开启 passthrough 模式，则由Nest处理响应
+            if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
+              // 处理响应头
+              headers.forEach((item: { key: string, value: string }) => {
+                res.setHeader(item.key, item.value)
+              })
+              // 处理响应体
+              res.send(result)
+            }
+          } catch (error) {
+            // 处理异常
+            this.callExceptionFilters(error, ctx, allFilters)
           }
         })
         Logger.log(`Mapped {${fullPath}}, ${httpMethod} route`, 'RoutesResolver');
       }
     }
     Logger.log("Nest application successfully started", 'NestApplication');
+  }
+  /**
+   * 调用异常过滤器
+   * @param error 异常对象
+   */
+  callExceptionFilters(error: any, host: any, filters: GlobalHttpExceptionFilter[]) {
+    // 调用全局异常过滤器
+    // 先按照方法 再是类 再是全局 再是默认
+    const allFilters = [...filters, ...this.globalHttpExceptionFilters, this.defaultGlobalExceptionFilter]
+    for (const filter of allFilters) {
+      let filterInstance = this.getFilterInstance(filter)
+      const exception = Reflect.getMetadata("catch", filterInstance.constructor) || []
+      // 检查异常过滤器是否匹配当前异常类型
+      if (exception.length === 0 || exception.some((item: any) => error instanceof item)) {
+        filterInstance.catch(error, host)
+        // 异常已处理，跳出循环
+        break
+      }
+    }
+  }
+  /**
+   * 获取异常过滤器实例
+   * @param filter 异常过滤器类或实例
+   * @returns 异常过滤器实例
+   */
+  getFilterInstance(filter: any) {
+    if (filter instanceof Function) {
+      const dependencies = this.resolveDependencies(filter)
+      return new filter(...dependencies)
+    }
+    return filter
   }
   /**
    * 解析参数

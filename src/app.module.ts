@@ -1,26 +1,8 @@
-import { Module, MiddlewareConsumer, NestModule, RequestMethod } from "./@nestjs/common";
+import { Module } from "./@nestjs/common";
 import { AppController } from "./app.controller";
-import { AppService } from "./app.service";
-import { DynamicConfigModule } from "./dynamicConfig.module";
+import { ExceptionController } from "./exception.controller";
 
 @Module({
-  imports: [DynamicConfigModule.forRoot('1000abc')],
-  controllers: [AppController],
-  providers: [AppService],
-  exports: [AppService],
+  controllers: [AppController, ExceptionController],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      //.apply(LoggerMiddleware)
-      //.apply(LoggerFunctionMiddleware)
-      //.forRoutes({ path: '/helloWorld', method: RequestMethod.GET })
-      // 路由通配符
-      //.forRoutes("ab*de")
-      .forRoutes(AppController)
-      .exclude(
-        { path: '/app/abcde', method: RequestMethod.GET },
-      )
-
-  }
-}
+export class AppModule { }
