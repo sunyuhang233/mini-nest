@@ -3,6 +3,7 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import { Logger } from './logger';
 import path from 'path';
 import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, GlobalHttpExceptionFilter, INJECTED_TOKENS, RequestMethod } from '@nestjs/common';
+import { APP_FILTER } from "./constants";
 export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();
@@ -40,7 +41,7 @@ export class NestApplication {
    * @param filters 异常过滤器数组
    * @returns 
    */
-  useGlobalFilters(...filters: GlobalHttpExceptionFilter[]) {
+  useGlobalFilters(...filters: Function[]) {
     this.globalHttpExceptionFilters.push(...filters)
     defineModule(this.module, filters.filter((filter) => filter instanceof Function))
     return this
@@ -488,6 +489,18 @@ export class NestApplication {
     this.app.use(middleware)
   }
   /**
+   * 初始化全局异常过滤器
+   */
+  async initGlobalFilters() {
+    const providers = Reflect.getMetadata('providers', this.module) || []
+    for (const provider of providers) {
+      if (provider.provide === APP_FILTER) {
+        const filterInstance = this.getProviderByToken(APP_FILTER, this.module)
+        this.useGlobalFilters(filterInstance)
+      }
+    }
+  }
+  /**
    * 启动应用程序并监听指定端口
    * @param port 监听的端口号
    */
@@ -496,6 +509,8 @@ export class NestApplication {
     await this.initProviders()
     // 初始化中间件
     await this.initMiddlewares()
+    // 初始化异常过滤器
+    await this.initGlobalFilters()
     // 初始化应用程序
     await this.init()
     // 监听指定端口

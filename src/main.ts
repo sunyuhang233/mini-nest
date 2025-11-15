@@ -10,7 +10,7 @@ async function bootstrap() {
   // 全局中间件
   app.use(LoggerFunctionMiddleware)
   // 全局使用异常过滤器
-  //app.useGlobalFilters(new CustomExceptionFilter())
+  //app.useGlobalFilters(CustomExceptionFilter)
   await app.use(session({
     secret: "your_secret_key", //加密会话的密钥
     resave: false, // 强制会话在每次请求结束后是否都强制重新保存会话，即使会话没有被修改

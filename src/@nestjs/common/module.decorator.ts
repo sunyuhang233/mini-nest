@@ -20,7 +20,7 @@ export function Module(metadata: ModuleMetadata): ClassDecorator {
     //     return null
     //   }
     // }).filter(Boolean)
-    defineModule(target, metadata.providers || [])
+    defineModule(target, (metadata.providers || []).map((item) => item.useClass).filter(Boolean))
     Reflect.defineMetadata('providers', metadata.providers, target)
     Reflect.defineMetadata('imports', metadata.imports, target)
     Reflect.defineMetadata('exports', metadata.exports, target)

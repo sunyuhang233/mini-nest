@@ -23,7 +23,7 @@ export class ExceptionController {
     throw new ForbiddenException()
   }
   @Get('/custom')
-  @UseFilters(CustomExceptionFilter)
+  //@UseFilters(CustomExceptionFilter)
   custom() {
     throw new BadRequestException("自定义异常")
   }
