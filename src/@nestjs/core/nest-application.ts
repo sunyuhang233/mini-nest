@@ -410,7 +410,7 @@ export class NestApplication {
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
     // 解析参数
     return Promise.all(paramsMetadata.map(async (item) => {
-      const { key, data, factory, pipes } = item
+      let { key, data, factory, pipes } = item
       // 因为nest不但支持http 还支持 graphql 微服务 web socket 等 兼容处理
       const ctx = {
         switchToHttp: () => ({
@@ -462,7 +462,8 @@ export class NestApplication {
       if (pipes) {
         for (const pipe of [...pipes]) {
           const pipeIns = await this.getPipeInstance(pipe)
-          value = pipeIns.transform(value)
+          const type = key === 'DecoratorFactory' ? 'custom' : key.toLowerCase()
+          value = pipeIns.transform(value, { type, data })
         }
       }
       return value

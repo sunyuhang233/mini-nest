@@ -17,3 +17,4 @@ export * from './http-global-exception';
 export * from './catch.decorator';
 export * from './use-filters.decorator';
 export * from './pipes';
+export * from './argument-metadata.interface';

@@ -1,6 +1,7 @@
 import { Get, Controller, Param, ParseIntPipe, ParseFloatPipe, ParseBoolPipe, ParseArrayPipe, ParseUUIDPipe, ParseEnumPipe, DefaultValuePipe } from "@nestjs/common";
 import { AppService } from "./app.service";
 import { Query } from "@nestjs/common";
+import { CustomPipe } from "./custom.pip";
 enum Roles {
   Admin = "admin",
   User = "user",
@@ -38,6 +39,11 @@ export class AppController {
   }
   @Get("default")
   findDefault(@Query("username", new DefaultValuePipe('hang')) username: string) {
+    console.log(username)
+    return `find this by ${username} ${typeof username}`
+  }
+  @Get("custom")
+  findCustom(@Query("username", CustomPipe) username: string) {
     console.log(username)
     return `find this by ${username} ${typeof username}`
   }
