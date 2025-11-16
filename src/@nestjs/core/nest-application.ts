@@ -2,9 +2,11 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, GlobalHttpExceptionFilter, INJECTED_TOKENS, RequestMethod, ValidationPipe } from '@nestjs/common';
+import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_PIPE } from "./constants";
 import { PipeTransform } from "@nestjs/common";
+import { CanActivate } from "@nestjs/common";
+import { Reflector } from "./reflector";
 export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();
@@ -161,9 +163,17 @@ export class NestApplication {
     return { routePath, routeMethod }
   }
   /**
+   * 添加默认的providers
+   */
+  addDefaultProviders() {
+    // 添加默认的providers
+    this.addProvider(Reflector, this.module, true)
+  }
+  /**
    * 初始化依赖注入容器
    */
   async initProviders() {
+    this.addDefaultProviders()
     // 初始化imports
     const imports = Reflect.getMetadata("imports", this.module) || []
     // 遍历导入的模块
@@ -296,6 +306,8 @@ export class NestApplication {
       defineModule(this.module, controllerFilters)
       // 获取控制器的管道
       const controllerPipes = Reflect.getMetadata('pipes', controller.constructor) || []
+      // 获取控制器的守卫
+      const controllerGuards = Reflect.getMetadata('guards', controller.constructor) || []
       // 获取路由前缀
       const prefix = Reflect.getMetadata('prefix', controller.constructor) || '/'
       Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver');
@@ -312,6 +324,10 @@ export class NestApplication {
         const allPipes = [...controllerPipes, ...methodPipes]
         // 合并控制器和方法的异常过滤器
         const allFilters = [...methodFilters, ...controllerFilters]
+        // 获取方法的守卫
+        const methodGuards = Reflect.getMetadata('guards', method) || []
+        // 合并控制器和方法的守卫
+        const allGuards = [...controllerGuards, ...methodGuards]
         // 拿到HTTP方法 
         const httpMethod = Reflect.getMetadata("method", method)
         // 拿到路由路径
@@ -340,6 +356,13 @@ export class NestApplication {
             })
           }
           try {
+            const context = {
+              ...ctx,
+              getClass: () => Controller,
+              getHandler: () => method,
+            }
+            // 检查守卫
+            await this.callGuards(allGuards, context as ExecutionContext)
             // 解析参数
             const args = await this.resolveParams(controller, methodName, req, res, next, allPipes)
             // 获取运行后结果
@@ -380,6 +403,35 @@ export class NestApplication {
       }
     }
     Logger.log("Nest application successfully started", 'NestApplication');
+  }
+  /**
+   * 调用守卫
+   * @param guards 守卫列表
+   * @param context 执行上下文
+   */
+  async callGuards(guards: CanActivate[], context: ExecutionContext) {
+    // 遍历守卫列表
+    for (const guard of guards) {
+      // 检查守卫是否通过
+      const guardInstance = this.getGuardInstance(guard)
+      const canActivate = await guardInstance.canActivate(context)
+      if (!canActivate) {
+        // 守卫未通过，抛出异常
+        throw new HttpException('Forbidden', HttpStatus.FORBIDDEN)
+      }
+    }
+  }
+  /**
+   * 获取守卫实例
+   * @param guard 守卫类或实例
+   * @returns 守卫实例
+   */
+  getGuardInstance(guard: any) {
+    if (guard instanceof Function) {
+      const dependencies = this.resolveDependencies(guard)
+      return new guard(...dependencies)
+    }
+    return guard
   }
   /**
    * 调用异常过滤器

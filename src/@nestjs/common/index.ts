@@ -18,3 +18,7 @@ export * from './catch.decorator';
 export * from './use-filters.decorator';
 export * from './pipes';
 export * from './argument-metadata.interface';
+export * from './can-activate.interface';
+export * from './use-guards.decorator';
+export * from './execution-context.interface';
+export * from './set-metadata.decorator';
