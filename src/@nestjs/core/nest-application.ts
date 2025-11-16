@@ -3,7 +3,7 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import { Logger } from './logger';
 import path from 'path';
 import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, GlobalHttpExceptionFilter, INJECTED_TOKENS, RequestMethod, ValidationPipe } from '@nestjs/common';
-import { APP_FILTER } from "./constants";
+import { APP_FILTER, APP_PIPE } from "./constants";
 import { PipeTransform } from "@nestjs/common";
 export class NestApplication {
   // express 应用实例
@@ -477,7 +477,7 @@ export class NestApplication {
       for (const pipe of [...this.globalPipes, ...pipes, ...paramPipes]) {
         const pipeIns = await this.getPipeInstance(pipe)
         const type = key === 'DecoratorFactory' ? 'custom' : key.toLowerCase()
-        value = pipeIns.transform(value, { type, data, metatype })
+        value = await pipeIns.transform(value, { type, data, metatype })
       }
       return value
     }))
@@ -552,6 +552,15 @@ export class NestApplication {
       }
     }
   }
+  async initGlobalPipes() {
+    const providers = Reflect.getMetadata('providers', this.module) || []
+    for (const provider of providers) {
+      if (provider.provide === APP_PIPE) {
+        const pipeInstance = this.getProviderByToken(APP_PIPE, this.module)
+        this.useGlobalPipes(pipeInstance)
+      }
+    }
+  }
   /**
    * 启动应用程序并监听指定端口
    * @param port 监听的端口号
@@ -563,6 +572,8 @@ export class NestApplication {
     await this.initMiddlewares()
     // 初始化异常过滤器
     await this.initGlobalFilters()
+    // 初始化全局管道
+    await this.initGlobalPipes()
     // 初始化应用程序
     await this.initControllers(this.module)
     // 监听指定端口

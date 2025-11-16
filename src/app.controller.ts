@@ -61,4 +61,8 @@ export class AppController {
   createUser(@Body() createUserDto: CreateUserDto) {
     return `create this by ${JSON.stringify(createUserDto)}`
   }
+  @Get("inject")
+  inject(@Query("username") username: string) {
+    return username
+  }
 }

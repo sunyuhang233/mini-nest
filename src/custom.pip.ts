@@ -1,8 +1,8 @@
-import { PipeTransform, ArgumentMetadata, Injectable } from "@nestjs/common";
+import { PipeTransform, ArgumentMetadata, Injectable, Inject } from "@nestjs/common";
 @Injectable()
 export class CustomPipe implements PipeTransform {
+  constructor(@Inject("PROVIDE") private provide: string) { }
   transform(value: any, metadata: ArgumentMetadata): any {
-    console.log(value, 'value-------------', metadata)
-    return value
+    return value + '--------' + this.provide
   }
 }
