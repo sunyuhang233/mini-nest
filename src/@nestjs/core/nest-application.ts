@@ -284,6 +284,8 @@ export class NestApplication {
       // 获取控制器的异常过滤器
       const controllerFilters = Reflect.getMetadata('filters', controller.constructor) || []
       defineModule(this.module, controllerFilters)
+      // 获取控制器的管道
+      const controllerPipes = Reflect.getMetadata('pipes', controller.constructor) || []
       // 获取路由前缀
       const prefix = Reflect.getMetadata('prefix', controller.constructor) || '/'
       Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver');
@@ -294,6 +296,10 @@ export class NestApplication {
         // 获取方法的异常过滤器
         const methodFilters = Reflect.getMetadata('filters', method) || []
         defineModule(this.module, methodFilters)
+        // 获取方法的管道
+        const methodPipes = Reflect.getMetadata('pipes', method) || []
+        // 合并控制器和方法的管道
+        const allPipes = [...controllerPipes, ...methodPipes]
         // 合并控制器和方法的异常过滤器
         const allFilters = [...methodFilters, ...controllerFilters]
         // 拿到HTTP方法 
@@ -325,7 +331,7 @@ export class NestApplication {
           }
           try {
             // 解析参数
-            const args = await this.resolveParams(controller, methodName, req, res, next)
+            const args = await this.resolveParams(controller, methodName, req, res, next, allPipes)
             // 获取运行后结果
             const result = await method.call(controller, ...args)
             // 解析响应元数据（res response next 等信息）
@@ -405,12 +411,12 @@ export class NestApplication {
    * @param next 下一个中间件函数
    * @returns 参数列表
    */
-  async resolveParams(controller: Function, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) {
+  async resolveParams(controller: Function, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction, allPipes: any[]) {
     // 获取参数列表
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
     // 解析参数
     return Promise.all(paramsMetadata.map(async (item) => {
-      let { key, data, factory, pipes } = item
+      let { key, data, factory, pipes = [] } = item
       // 因为nest不但支持http 还支持 graphql 微服务 web socket 等 兼容处理
       const ctx = {
         switchToHttp: () => ({
@@ -458,13 +464,10 @@ export class NestApplication {
           value = null
           break
       }
-      // 对参数进行管道转换
-      if (pipes) {
-        for (const pipe of [...pipes]) {
-          const pipeIns = await this.getPipeInstance(pipe)
-          const type = key === 'DecoratorFactory' ? 'custom' : key.toLowerCase()
-          value = pipeIns.transform(value, { type, data })
-        }
+      for (const pipe of [...pipes, ...allPipes]) {
+        const pipeIns = await this.getPipeInstance(pipe)
+        const type = key === 'DecoratorFactory' ? 'custom' : key.toLowerCase()
+        value = pipeIns.transform(value, { type, data })
       }
       return value
     }))

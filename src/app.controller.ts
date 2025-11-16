@@ -1,7 +1,10 @@
-import { Get, Controller, Param, ParseIntPipe, ParseFloatPipe, ParseBoolPipe, ParseArrayPipe, ParseUUIDPipe, ParseEnumPipe, DefaultValuePipe } from "@nestjs/common";
+import { Get, Controller, Param, ParseIntPipe, ParseFloatPipe, ParseBoolPipe, ParseArrayPipe, ParseUUIDPipe, ParseEnumPipe, DefaultValuePipe, Post, Body } from "@nestjs/common";
 import { AppService } from "./app.service";
 import { Query } from "@nestjs/common";
 import { CustomPipe } from "./custom.pip";
+import { CreateCatDto, createCatSchema } from "./create-cat.dto";
+import { UsePipes } from "@nestjs/common/use-pipes.decorator";
+import { ZodValidationPipe } from "./zod-validation.pipe";
 enum Roles {
   Admin = "admin",
   User = "user",
@@ -46,5 +49,11 @@ export class AppController {
   findCustom(@Query("username", CustomPipe) username: string) {
     console.log(username)
     return `find this by ${username} ${typeof username}`
+  }
+  @Post("create-cat")
+  @UsePipes(new ZodValidationPipe(createCatSchema))
+  createCat(@Body() createCatDto: CreateCatDto) {
+    console.log(createCatDto)
+    return `create this by ${JSON.stringify(createCatDto)}`
   }
 }
