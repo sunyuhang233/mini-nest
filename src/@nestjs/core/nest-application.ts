@@ -2,8 +2,9 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, GlobalHttpExceptionFilter, INJECTED_TOKENS, RequestMethod } from '@nestjs/common';
+import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, GlobalHttpExceptionFilter, INJECTED_TOKENS, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER } from "./constants";
+import { PipeTransform } from "@nestjs/common";
 export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();
@@ -23,6 +24,8 @@ export class NestApplication {
   private defaultGlobalExceptionFilter = new GlobalHttpExceptionFilter()
   // 全局异常过滤器数组
   private globalHttpExceptionFilters = []
+  // 全局管道数组
+  private globalPipes: PipeTransform[] = []
 
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
@@ -36,6 +39,13 @@ export class NestApplication {
       next()
     })
     defineModule(this.module, [this.defaultGlobalExceptionFilter])
+  }
+  /**
+   * 添加全局管道
+   * @param pipes 全局管道数组
+   */
+  useGlobalPipes(...pipes: PipeTransform[]) {
+    this.globalPipes.push(...pipes)
   }
   /**
    * 添加全局异常过滤器
@@ -411,7 +421,7 @@ export class NestApplication {
    * @param next 下一个中间件函数
    * @returns 参数列表
    */
-  async resolveParams(controller: Function, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction, allPipes: any[]) {
+  async resolveParams(controller: Function, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction, paramPipes: any[]) {
     // 获取参数列表
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
     // 解析参数
@@ -464,7 +474,7 @@ export class NestApplication {
           value = null
           break
       }
-      for (const pipe of [...pipes, ...allPipes]) {
+      for (const pipe of [...this.globalPipes, ...pipes, ...paramPipes]) {
         const pipeIns = await this.getPipeInstance(pipe)
         const type = key === 'DecoratorFactory' ? 'custom' : key.toLowerCase()
         value = pipeIns.transform(value, { type, data, metatype })
