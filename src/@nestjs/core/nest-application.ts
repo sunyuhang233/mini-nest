@@ -94,6 +94,8 @@ export class NestApplication {
         })
       }
     }
+    // 清空上一次的中间件
+    this.middlewares.length = 0
     return this
   }
   /**
@@ -312,7 +314,7 @@ export class NestApplication {
         // 拼接路由路径
         const fullPath = path.posix.join("/", prefix, pathMetadata)
         // express 路由处理
-        this.app[httpMethod.toLowerCase()](fullPath, (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
+        this.app[httpMethod.toLowerCase()](fullPath, async (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
           const ctx = {
             switchToHttp: () => ({
               getRequest: () => req,
@@ -324,7 +326,7 @@ export class NestApplication {
             // 解析参数
             const args = this.resolveParams(controller, methodName, req, res, next)
             // 获取运行后结果
-            const result = method.call(controller, ...args)
+            const result = await method.call(controller, ...args)
             // 解析响应元数据（res response next 等信息）
             const responseMetadata = this.resolveResponseMetadata(controller, methodName)
             // 优先检查是否需要重定向（基于方法返回值）
