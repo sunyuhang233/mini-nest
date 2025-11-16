@@ -228,8 +228,9 @@ export class NestApplication {
    */
   addProvider(provider: any, module: any, global: boolean = false) {
     // 代表module这个模块对应的providers的token集合
+    // global 为true的情况就是全局providers 否则就是模块providers
     const providers = global ? this.globalProviders : (this.moduleProviders.get(module) || new Set());
-    if (!this.moduleProviders.has(module)) {
+    if (!global) {
       this.moduleProviders.set(module, providers)
     }
     const injectToken = provider.provide ?? provider;
