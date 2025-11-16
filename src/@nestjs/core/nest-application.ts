@@ -325,7 +325,7 @@ export class NestApplication {
           }
           try {
             // 解析参数
-            const args = this.resolveParams(controller, methodName, req, res, next)
+            const args = await this.resolveParams(controller, methodName, req, res, next)
             // 获取运行后结果
             const result = await method.call(controller, ...args)
             // 解析响应元数据（res response next 等信息）
@@ -405,12 +405,12 @@ export class NestApplication {
    * @param next 下一个中间件函数
    * @returns 参数列表
    */
-  resolveParams(controller: Function, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) {
+  async resolveParams(controller: Function, methodName: string, req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) {
     // 获取参数列表
     const paramsMetadata = Reflect.getMetadata('params', controller, methodName) || []
     // 解析参数
-    return paramsMetadata.map((item) => {
-      const { key, data, factory } = item
+    return Promise.all(paramsMetadata.map(async (item) => {
+      const { key, data, factory, pipes } = item
       // 因为nest不但支持http 还支持 graphql 微服务 web socket 等 兼容处理
       const ctx = {
         switchToHttp: () => ({
@@ -419,34 +419,66 @@ export class NestApplication {
           getNext: () => next,
         })
       }
+      let value
       switch (key) {
         case 'Request':
         case 'Req':
-          return req
+          value = req
+          break
         case "Query":
-          return data ? req.query[data] : req.query
+          value = data ? req.query[data] : req.query
+          break
         case "Headers":
-          return data ? req.headers[data] : req.headers
+          value = data ? req.headers[data] : req.headers
+          break
         case "Session":
           // @ts-expect-error
-          return data ? req.session[data] : req.session
+          value = data ? req.session[data] : req.session
+          break
         case "Ip":
-          return req.ip
+          value = req.ip
+          break
         case "Param":
-          return data ? req.params[data] : req.params
+          value = data ? req.params[data] : req.params
+          break
         case "Body":
-          return data ? req.body[data] : req.body
+          value = data ? req.body[data] : req.body
+          break
         case "Res":
         case "Response":
-          return res
+          value = res
+          break
         case "Next":
-          return next
+          value = next
+          break
         case 'DecoratorFactory':
-          return factory(data, ctx)
+          value = factory(data, ctx)
+          break
         default:
-          return null
+          value = null
+          break
       }
-    })
+      // 对参数进行管道转换
+      if (pipes) {
+        for (const pipe of [...pipes]) {
+          const pipeIns = await this.getPipeInstance(pipe)
+          value = pipeIns.transform(value)
+        }
+      }
+      return value
+    }))
+  }
+  /**
+   * 获取管道实例
+   * @param pipe 管道类或实例
+   * @returns 管道实例
+   */
+  getPipeInstance(pipe) {
+    if (pipe instanceof Function) {
+      const dependencies = this.resolveDependencies(pipe)
+      return new pipe(...dependencies)
+    }
+    return pipe
   }
   /**
    * 解析响应元数据（res response next 等信息）

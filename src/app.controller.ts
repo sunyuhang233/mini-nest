@@ -1,11 +1,11 @@
-import { Get, Controller } from "./@nestjs/common";
+import { Get, Controller, Param, ParseIntPipe } from "./@nestjs/common";
 import { AppService } from "./app.service";
 @Controller("app")
 export class AppController {
   constructor(private appService: AppService) { }
 
-  @Get("test")
-  abcde() {
-    return this.appService.getHello()
+  @Get(":id")
+  abcde(@Param("id", ParseIntPipe) id: number) {
+    return `find this by ${id} ${typeof id}`
   }
 }
