@@ -20,3 +20,12 @@ Content-Type: application/json
   "name": "hang",
   "age": 18
 }
+
+###
+POST http://localhost:3000/app/create-user
+Content-Type: application/json
+
+{
+  "name": "hang",
+  "age": "18"
+}

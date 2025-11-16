@@ -11,10 +11,11 @@ export const createParamDecorator = (keyOrFactory: string | Function) => {
     // 属性名是params 值是数组 数组里面放置数据 表示哪个位置使用哪个装饰器
     const existingParams = Reflect.getMetadata("params", target, propertyKey) || []
     //existingParams.push({ parameterIndex, key })
+    const metatype = Reflect.getMetadata('design:paramtypes', target, propertyKey)[parameterIndex];
     if (keyOrFactory instanceof Function) {
-      existingParams[parameterIndex] = { parameterIndex, key: 'DecoratorFactory', data, factory: keyOrFactory, pipes }
+      existingParams[parameterIndex] = { parameterIndex, key: 'DecoratorFactory', data, factory: keyOrFactory, pipes, metatype }
     } else {
-      existingParams[parameterIndex] = { parameterIndex, key: keyOrFactory, data, pipes }
+      existingParams[parameterIndex] = { parameterIndex, key: keyOrFactory, data, pipes, metatype }
     }
     Reflect.defineMetadata(`params`, existingParams, target, propertyKey)
   }

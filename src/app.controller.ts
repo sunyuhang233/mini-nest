@@ -5,6 +5,8 @@ import { CustomPipe } from "./custom.pip";
 import { CreateCatDto, createCatSchema } from "./create-cat.dto";
 import { UsePipes } from "@nestjs/common/use-pipes.decorator";
 import { ZodValidationPipe } from "./zod-validation.pipe";
+import { CreateUserDto } from "./create-user.dto";
+import { ClassValidationPipe } from "./class-validation.pipe";
 enum Roles {
   Admin = "admin",
   User = "user",
@@ -55,5 +57,10 @@ export class AppController {
   createCat(@Body() createCatDto: CreateCatDto) {
     console.log(createCatDto)
     return `create this by ${JSON.stringify(createCatDto)}`
+  }
+  @Post("create-user")
+  @UsePipes(new ClassValidationPipe())
+  createUser(@Body() createUserDto: CreateUserDto) {
+    return `create this by ${JSON.stringify(createUserDto)}`
   }
 }
