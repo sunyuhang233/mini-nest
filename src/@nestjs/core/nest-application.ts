@@ -23,6 +23,7 @@ export class NestApplication {
   private defaultGlobalExceptionFilter = new GlobalHttpExceptionFilter()
   // 全局异常过滤器数组
   private globalHttpExceptionFilters = []
+
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
     this.app.use(express.urlencoded({ extended: true })) // 解析 urlencoded 格式的请求体
@@ -47,15 +48,6 @@ export class NestApplication {
     return this
   }
   /**
-   * 排除指定路由
-   * @param routes 路由数组
-   * @returns 
-   */
-  exclude(...routes) {
-    this.excludedRoutes.push(...routes.map(this.normalizeRouteInfo))
-    return this
-  }
-  /**
    * 初始化中间件
    */
   async initMiddlewares() {
@@ -67,6 +59,7 @@ export class NestApplication {
    * @returns 
    */
   apply(...mids: any[]) {
+    // 定义模块 并将中间件添加到模块中
     defineModule(this.module, mids)
     this.middlewares.push(...mids)
     return this
@@ -87,12 +80,12 @@ export class NestApplication {
           }
           if (routeMethod === RequestMethod.ALL || routeMethod === req.method) {
             // 可能是中间件的类 也可能是中间件的实例 也可能是函数中间件
-            if ('use' in mid.prototype || 'use' in mid) {
+            if ('use' in mid.prototype || 'use' in mid) { // 传递的是类中间件
               const middlewareInstance = this.getMiddlewareInstance(mid)
               middlewareInstance.use(req, res, next)
-            } else if (mid instanceof Function) {
+            } else if (mid instanceof Function) { // 传递的是函数中间件
               mid(req, res, next)
-            } else {
+            } else { // 传递是其他类型
               next()
             }
           } else {
@@ -101,6 +94,15 @@ export class NestApplication {
         })
       }
     }
+    return this
+  }
+  /**
+ * 排除指定路由
+ * @param routes 路由数组
+ * @returns 
+ */
+  exclude(...routes) {
+    this.excludedRoutes.push(...routes.map(this.normalizeRouteInfo))
     return this
   }
   /**
@@ -135,12 +137,12 @@ export class NestApplication {
   normalizeRouteInfo(route: any) {
     let routePath = ''
     let routeMethod = RequestMethod.ALL
-    if (typeof route === 'string') {
+    if (typeof route === 'string') { // 传递的是路径string
       routePath = route
-    } else if ('path' in route) {
+    } else if ('path' in route) { // 传递的是对象 包含path和method {path: '/api', method: RequestMethod.GET}
       routePath = route.path
       routeMethod = route.method || RequestMethod.ALL
-    } else if (route instanceof Function) {
+    } else if (route instanceof Function) { // 传递的是控制器类 则获取其prefix
       routePath = Reflect.getMetadata("prefix", route) || ""
     }
     routePath = path.posix.join('/', routePath)
