@@ -213,6 +213,7 @@ export class NestApplication {
         }
       }
     }
+    this.initControllers(module)
   }
   /**
    * 判断是否为模块
@@ -268,11 +269,11 @@ export class NestApplication {
     }
   }
   /**
-   * 初始化应用程序
+   * 初始化Controller
    */
-  async init() {
+  async initControllers(module) {
     // 取出控制器
-    const controllers = Reflect.getMetadata("controllers", this.module) || []
+    const controllers = Reflect.getMetadata("controllers", module) || []
     Logger.log("AppModule dependencies initialized", 'InstanceLoader');
     // 处理路由配置
     for (const Controller of controllers) {
@@ -517,7 +518,7 @@ export class NestApplication {
     // 初始化异常过滤器
     await this.initGlobalFilters()
     // 初始化应用程序
-    await this.init()
+    await this.initControllers(this.module)
     // 监听指定端口
     this.app.listen(port, () => {
       Logger.log(`Application is running on http://localhost:${port}`, 'NestApplication');

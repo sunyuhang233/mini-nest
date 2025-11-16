@@ -12,6 +12,8 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
   catch(exception: any, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    // 如果响应头已经发送，直接返回
+    if (response.headersSent) return
     if (exception instanceof HttpException) {
       // 处理 HttpException 异常
       const res = exception.getResponse();
