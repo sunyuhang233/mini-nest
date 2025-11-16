@@ -3,7 +3,7 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import { Logger } from './logger';
 import path from 'path';
 import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, RequestMethod, ValidationPipe } from '@nestjs/common';
-import { APP_FILTER, APP_PIPE } from "./constants";
+import { APP_FILTER, APP_GUARD, APP_PIPE } from "./constants";
 import { PipeTransform } from "@nestjs/common";
 import { CanActivate } from "@nestjs/common";
 import { Reflector } from "./reflector";
@@ -28,6 +28,8 @@ export class NestApplication {
   private globalHttpExceptionFilters = []
   // 全局管道数组
   private globalPipes: PipeTransform[] = []
+  // 全局守卫
+  private globalGuards: CanActivate[] = []
 
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
@@ -41,6 +43,14 @@ export class NestApplication {
       next()
     })
     defineModule(this.module, [this.defaultGlobalExceptionFilter])
+  }
+
+  /**
+   * 添加全局守卫
+   * @param guards 全局守卫数组
+   */
+  useGlobalGuards(...guards: CanActivate[]) {
+    this.globalGuards.push(...guards)
   }
   /**
    * 添加全局管道
@@ -327,7 +337,7 @@ export class NestApplication {
         // 获取方法的守卫
         const methodGuards = Reflect.getMetadata('guards', method) || []
         // 合并控制器和方法的守卫
-        const allGuards = [...controllerGuards, ...methodGuards]
+        const allGuards = [...this.globalGuards, ...controllerGuards, ...methodGuards]
         // 拿到HTTP方法 
         const httpMethod = Reflect.getMetadata("method", method)
         // 拿到路由路径
@@ -604,12 +614,27 @@ export class NestApplication {
       }
     }
   }
+  /**
+   * 初始化全局管道
+   */
   async initGlobalPipes() {
     const providers = Reflect.getMetadata('providers', this.module) || []
     for (const provider of providers) {
       if (provider.provide === APP_PIPE) {
         const pipeInstance = this.getProviderByToken(APP_PIPE, this.module)
         this.useGlobalPipes(pipeInstance)
+      }
+    }
+  }
+  /**
+   * 初始化全局守卫
+   */
+  async initGlobalGuards() {
+    const providers = Reflect.getMetadata('providers', this.module) || []
+    for (const provider of providers) {
+      if (provider.provide === APP_GUARD) {
+        const guardInstance = this.getProviderByToken(APP_GUARD, this.module)
+        this.useGlobalGuards(guardInstance)
       }
     }
   }
@@ -626,6 +651,8 @@ export class NestApplication {
     await this.initGlobalFilters()
     // 初始化全局管道
     await this.initGlobalPipes()
+    // 初始化全局守卫
+    await this.initGlobalGuards()
     // 初始化应用程序
     await this.initControllers(this.module)
     // 监听指定端口
