@@ -7,6 +7,7 @@ import { APP_FILTER, APP_GUARD, APP_PIPE } from "./constants";
 import { PipeTransform } from "@nestjs/common";
 import { CanActivate } from "@nestjs/common";
 import { Reflector } from "./reflector";
+import { from, mergeMap, Observable, of } from "rxjs";
 export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();
@@ -318,6 +319,8 @@ export class NestApplication {
       const controllerPipes = Reflect.getMetadata('pipes', controller.constructor) || []
       // 获取控制器的守卫
       const controllerGuards = Reflect.getMetadata('guards', controller.constructor) || []
+      // 获取控制器的拦截器
+      const controllerInterceptors = Reflect.getMetadata('interceptors', controller.constructor) || []
       // 获取路由前缀
       const prefix = Reflect.getMetadata('prefix', controller.constructor) || '/'
       Logger.log(`${Controller.name} {${prefix}}`, 'RoutesResolver');
@@ -338,6 +341,10 @@ export class NestApplication {
         const methodGuards = Reflect.getMetadata('guards', method) || []
         // 合并控制器和方法的守卫
         const allGuards = [...this.globalGuards, ...controllerGuards, ...methodGuards]
+        // 获取方法的拦截器
+        const methodInterceptors = Reflect.getMetadata('interceptors', method) || []
+        // 合并控制器和方法的拦截器
+        const allInterceptors = [...controllerInterceptors, ...methodInterceptors]
         // 拿到HTTP方法 
         const httpMethod = Reflect.getMetadata("method", method)
         // 拿到路由路径
@@ -375,35 +382,37 @@ export class NestApplication {
             await this.callGuards(allGuards, context as ExecutionContext)
             // 解析参数
             const args = await this.resolveParams(controller, methodName, req, res, next, allPipes)
-            // 获取运行后结果
-            const result = await method.call(controller, ...args)
-            // 解析响应元数据（res response next 等信息）
-            const responseMetadata = this.resolveResponseMetadata(controller, methodName)
-            // 优先检查是否需要重定向（基于方法返回值）
-            if (result?.url) {
-              res.redirect(result.statusCode || 302, result.url)
-              return
-            }
-            // 其次检查是否有路由级别的重定向配置
-            if (redirectUrl) {
-              res.redirect(redirectStatusCode || 302, redirectUrl)
-              return
-            }
-            // 检查状态码
-            if (statusCode) {
-              res.statusCode = statusCode
-            } else if (httpMethod === 'POST') {
-              res.statusCode = 201
-            }
-            // 如果没有注入 Response 装饰器 或者 开启 passthrough 模式，则由Nest处理响应
-            if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
-              // 处理响应头
-              headers.forEach((item: { key: string, value: string }) => {
-                res.setHeader(item.key, item.value)
-              })
-              // 处理响应体
-              res.send(result)
-            }
+            this.callInterceptors(controller, method, args, allInterceptors, context).subscribe((result) => {
+              // 获取运行后结果
+              //const result = await method.call(controller, ...args)
+              // 解析响应元数据（res response next 等信息）
+              const responseMetadata = this.resolveResponseMetadata(controller, methodName)
+              // 优先检查是否需要重定向（基于方法返回值）
+              if (result?.url) {
+                res.redirect(result.statusCode || 302, result.url)
+                return
+              }
+              // 其次检查是否有路由级别的重定向配置
+              if (redirectUrl) {
+                res.redirect(redirectStatusCode || 302, redirectUrl)
+                return
+              }
+              // 检查状态码
+              if (statusCode) {
+                res.statusCode = statusCode
+              } else if (httpMethod === 'POST') {
+                res.statusCode = 201
+              }
+              // 如果没有注入 Response 装饰器 或者 开启 passthrough 模式，则由Nest处理响应
+              if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
+                // 处理响应头
+                headers.forEach((item: { key: string, value: string }) => {
+                  res.setHeader(item.key, item.value)
+                })
+                // 处理响应体
+                res.send(result)
+              }
+            })
           } catch (error) {
             // 处理异常
             this.callExceptionFilters(error, ctx, allFilters)
@@ -413,6 +422,41 @@ export class NestApplication {
       }
     }
     Logger.log("Nest application successfully started", 'NestApplication');
+  }
+  /**
+   * 调用拦截器
+   * @param controller 控制器实例
+   * @param methodName 方法名
+   * @param args 方法参数
+   * @param allInterceptors 所有拦截器列表
+   * @param context 执行上下文
+   */
+  callInterceptors(controller, method, args, allInterceptors, context) {
+    const nextFn = (i = 0): Observable<any> => {
+      if (i >= allInterceptors.length) {
+        const result = method.call(controller, ...args);
+        return result instanceof Promise ? from(result) : of(result);
+      }
+      const handler = {
+        handle: () => nextFn(i + 1),
+      };
+      const interceptorInstance = this.getInterceptorInstance(allInterceptors[i]);
+      const result = interceptorInstance.intercept(context, handler);
+      return from(result).pipe(mergeMap(res => res instanceof Observable ? res : of(res)));
+    };
+    return nextFn();
+  }
+  /**
+   * 获取拦截器实例
+   * @param interceptor 拦截器类或实例
+   * @returns 拦截器实例
+   */
+  getInterceptorInstance(interceptor: any) {
+    if (interceptor instanceof Function) {
+      const dependencies = this.resolveDependencies(interceptor)
+      return new interceptor(...dependencies)
+    }
+    return interceptor
   }
   /**
    * 调用守卫
