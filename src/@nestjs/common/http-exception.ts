@@ -47,11 +47,7 @@ export class BadGatewayException extends HttpException {
 }
 
 export class RequestTimeoutException extends HttpException {
-  constructor(message: string, error?: any) {
-    super({
-      status: HttpStatus.REQUEST_TIMEOUT,
-      message,
-      error,
-    }, HttpStatus.REQUEST_TIMEOUT)
+  constructor(message?: string, error?: any) {
+    super({ message: message ?? "Request Timeout", error, statusCode: HttpStatus.REQUEST_TIMEOUT }, HttpStatus.REQUEST_TIMEOUT)
   }
 }
