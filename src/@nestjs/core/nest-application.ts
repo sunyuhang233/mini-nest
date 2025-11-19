@@ -2,7 +2,7 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, RequestMethod, ValidationPipe } from '@nestjs/common';
+import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, NestInterceptor, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from "./constants";
 import { PipeTransform } from "@nestjs/common";
 import { CanActivate } from "@nestjs/common";
@@ -31,6 +31,8 @@ export class NestApplication {
   private globalPipes: PipeTransform[] = []
   // 全局守卫
   private globalGuards: CanActivate[] = []
+  // 全局拦截器数组
+  private readonly globalInterceptors: NestInterceptor[] = [];
 
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
@@ -44,6 +46,14 @@ export class NestApplication {
       next()
     })
     defineModule(this.module, [this.defaultGlobalExceptionFilter])
+  }
+
+  /**
+   * 添加全局拦截器
+   * @param interceptors 全局拦截器数组
+   */
+  useGlobalInterceptors(...interceptors: NestInterceptor[]) {
+    this.globalInterceptors.push(...interceptors)
   }
 
   /**
@@ -344,7 +354,7 @@ export class NestApplication {
         // 获取方法的拦截器
         const methodInterceptors = Reflect.getMetadata('interceptors', method) || []
         // 合并控制器和方法的拦截器
-        const allInterceptors = [...controllerInterceptors, ...methodInterceptors]
+        const allInterceptors = [...this.globalInterceptors, ...controllerInterceptors, ...methodInterceptors]
         // 拿到HTTP方法 
         const httpMethod = Reflect.getMetadata("method", method)
         // 拿到路由路径
