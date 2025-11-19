@@ -3,7 +3,7 @@ import express, { Express, Request as ExpressRequest, Response as ExpressRespons
 import { Logger } from './logger';
 import path from 'path';
 import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, NestInterceptor, RequestMethod, ValidationPipe } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD, APP_PIPE } from "./constants";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from "./constants";
 import { PipeTransform } from "@nestjs/common";
 import { CanActivate } from "@nestjs/common";
 import { Reflector } from "./reflector";
@@ -33,6 +33,12 @@ export class NestApplication {
   private globalGuards: CanActivate[] = []
   // 全局拦截器数组
   private readonly globalInterceptors: NestInterceptor[] = [];
+
+  private readonly globalProviderMap = new Map([
+    [APP_INTERCEPTOR, new Map()],
+    [APP_GUARD, new Map()],
+    [APP_PIPE, new Map()], [APP_FILTER, new Map()]
+  ])
 
   constructor(private readonly module: any) {
     this.app.use(express.json()) // 解析 json 格式的请求体
@@ -229,7 +235,29 @@ export class NestApplication {
     const providers = Reflect.getMetadata("providers", this.module) || []
     // 遍历添加到providers
     for (const provider of providers) {
-      this.addProvider(provider, this.module)
+      //this.addProvider(provider, this.module)
+      this.processProvider(provider, this.module);
+    }
+  }
+
+  /**
+   * 处理provider
+   * @param provider 要处理的provider
+   * @param module 要处理的模块
+   */
+  processProvider(provider: any, module: any) {
+    if (this.globalProviderMap.has(provider.provide)) {
+      let instanceMap = this.globalProviderMap.get(provider.provide)
+      if (!instanceMap) {
+        instanceMap = new Map()
+        this.globalProviderMap.set(provider.provide, instanceMap)
+      }
+      const { useClass } = provider
+      if (!instanceMap.has(useClass)) {
+        instanceMap.set(useClass, new useClass(...this.resolveDependencies(useClass)))
+      }
+    } else {
+      this.addProvider(provider, module)
     }
   }
   /**
@@ -693,21 +721,45 @@ export class NestApplication {
     }
   }
   /**
+   * 初始化providers
+   */
+  async initGlobalProviders() {
+    for (const [provide, instanceMap] of this.globalProviderMap) {
+      switch (provide) {
+        case APP_INTERCEPTOR:
+          console.log('APP_INTERCEPTOR', ...instanceMap.values());
+          this.useGlobalInterceptors(...instanceMap.values());
+          break
+        case APP_PIPE:
+          this.useGlobalPipes(...instanceMap.values());
+          break
+        case APP_GUARD:
+          this.useGlobalGuards(...instanceMap.values());
+          break
+        case APP_FILTER:
+          this.useGlobalFilters(...instanceMap.values());
+          break
+      }
+    }
+  }
+  /**
    * 启动应用程序并监听指定端口
    * @param port 监听的端口号
    */
   async listen(port: number) {
     // 注入providers
     await this.initProviders()
-    // 初始化中间件
-    await this.initMiddlewares()
-    // 初始化异常过滤器
-    await this.initGlobalFilters()
-    // 初始化全局管道
-    await this.initGlobalPipes()
-    // 初始化全局守卫
-    await this.initGlobalGuards()
-    // 初始化应用程序
+    // // 初始化中间件
+    // await this.initMiddlewares()
+    // // 初始化异常过滤器
+    // await this.initGlobalFilters()
+    // // 初始化全局管道
+    // await this.initGlobalPipes()
+    // // 初始化全局守卫
+    // await this.initGlobalGuards()
+    // // 初始化全局拦截器
+    await this.initGlobalProviders()
+    // 初始化providers
     await this.initControllers(this.module)
     // 监听指定端口
     this.app.listen(port, () => {
