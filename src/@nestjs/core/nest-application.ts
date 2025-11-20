@@ -7,7 +7,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from "./constants";
 import { PipeTransform } from "@nestjs/common";
 import { CanActivate } from "@nestjs/common";
 import { Reflector } from "./reflector";
-import { from, mergeMap, Observable, of } from "rxjs";
+import { from, mergeMap, Observable, of, catchError, EMPTY } from "rxjs";
 export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();
@@ -420,37 +420,46 @@ export class NestApplication {
             await this.callGuards(allGuards, context as ExecutionContext)
             // 解析参数
             // const args = await this.resolveParams(controller, methodName, req, res, next, allPipes)
-            this.callInterceptors(controller, method, allInterceptors, context, allPipes).subscribe((result) => {
-              // 获取运行后结果
-              //const result = await method.call(controller, ...args)
-              // 解析响应元数据（res response next 等信息）
-              const responseMetadata = this.resolveResponseMetadata(controller, methodName)
-              // 优先检查是否需要重定向（基于方法返回值）
-              if (result?.url) {
-                res.redirect(result.statusCode || 302, result.url)
-                return
-              }
-              // 其次检查是否有路由级别的重定向配置
-              if (redirectUrl) {
-                res.redirect(redirectStatusCode || 302, redirectUrl)
-                return
-              }
-              // 检查状态码
-              if (statusCode) {
-                res.statusCode = statusCode
-              } else if (httpMethod === 'POST') {
-                res.statusCode = 201
-              }
-              // 如果没有注入 Response 装饰器 或者 开启 passthrough 模式，则由Nest处理响应
-              if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
-                // 处理响应头
-                headers.forEach((item: { key: string, value: string }) => {
-                  res.setHeader(item.key, item.value)
+            this.callInterceptors(controller, method, allInterceptors, context, allPipes)
+              .pipe(
+                catchError(error => {
+                  // 处理异常
+                  this.callExceptionFilters(error, ctx, allFilters)
+                  return EMPTY; // 返回空 Observable 防止继续处理
                 })
-                // 处理响应体
-                res.send(result)
-              }
-            })
+              )
+              .subscribe((result) => {
+                console.log(result, 'result')
+                // 获取运行后结果
+                //const result = await method.call(controller, ...args)
+                // 解析响应元数据（res response next 等信息）
+                const responseMetadata = this.resolveResponseMetadata(controller, methodName)
+                // 优先检查是否需要重定向（基于方法返回值）
+                if (result?.url) {
+                  res.redirect(result.statusCode || 302, result.url)
+                  return
+                }
+                // 其次检查是否有路由级别的重定向配置
+                if (redirectUrl) {
+                  res.redirect(redirectStatusCode || 302, redirectUrl)
+                  return
+                }
+                // 检查状态码
+                if (statusCode) {
+                  res.statusCode = statusCode
+                } else if (httpMethod === 'POST') {
+                  res.statusCode = 201
+                }
+                // 如果没有注入 Response 装饰器 或者 开启 passthrough 模式，则由Nest处理响应
+                if (!responseMetadata || (responseMetadata?.data?.passthrough)) {
+                  // 处理响应头
+                  headers.forEach((item: { key: string, value: string }) => {
+                    res.setHeader(item.key, item.value)
+                  })
+                  // 处理响应体
+                  res.send(result)
+                }
+              })
           } catch (error) {
             // 处理异常
             this.callExceptionFilters(error, ctx, allFilters)

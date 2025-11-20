@@ -7,6 +7,10 @@ export const createParamDecorator = (keyOrFactory: string | Function) => {
    * parameterIndex: 参数索引(从右往左执行)
    */
   return (data?: any, ...pipes: any[]) => (target: any, propertyKey: string, parameterIndex: number) => {
+    if (data && typeof data !== 'string') {
+      pipes = [data, ...pipes]
+      data = null
+    }
     // 给控制器的原型的propertyKey方法添加一个params的元数据
     // 属性名是params 值是数组 数组里面放置数据 表示哪个位置使用哪个装饰器
     const existingParams = Reflect.getMetadata("params", target, propertyKey) || []
