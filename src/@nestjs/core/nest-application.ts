@@ -419,8 +419,8 @@ export class NestApplication {
             // 检查守卫
             await this.callGuards(allGuards, context as ExecutionContext)
             // 解析参数
-            const args = await this.resolveParams(controller, methodName, req, res, next, allPipes)
-            this.callInterceptors(controller, method, args, allInterceptors, context).subscribe((result) => {
+            // const args = await this.resolveParams(controller, methodName, req, res, next, allPipes)
+            this.callInterceptors(controller, method, allInterceptors, context, allPipes).subscribe((result) => {
               // 获取运行后结果
               //const result = await method.call(controller, ...args)
               // 解析响应元数据（res response next 等信息）
@@ -469,16 +469,21 @@ export class NestApplication {
    * @param allInterceptors 所有拦截器列表
    * @param context 执行上下文
    */
-  callInterceptors(controller, method, args, allInterceptors, context) {
+  callInterceptors(controller, method, interceptors, context, pipes) {
     const nextFn = (i = 0): Observable<any> => {
-      if (i >= allInterceptors.length) {
-        const result = method.call(controller, ...args);
-        return result instanceof Promise ? from(result) : of(result);
+      if (i >= interceptors.length) {
+        return from(this.resolveParams(controller, method.name, context.switchToHttp().getRequest(), context.switchToHttp().getResponse(), context.switchToHttp().getNext(), pipes))
+          .pipe(
+            mergeMap(args => {
+              const result = method.call(controller, ...args);
+              return result instanceof Promise ? from(result) : of(result);
+            })
+          );
       }
       const handler = {
         handle: () => nextFn(i + 1),
       };
-      const interceptorInstance = this.getInterceptorInstance(allInterceptors[i]);
+      const interceptorInstance = this.getInterceptorInstance(interceptors[i]);
       const result = interceptorInstance.intercept(context, handler);
       return from(result).pipe(mergeMap(res => res instanceof Observable ? res : of(res)));
     };
@@ -613,6 +618,9 @@ export class NestApplication {
           break
         case 'DecoratorFactory':
           value = factory(data, ctx)
+          break
+        case 'File':
+          value = req.file
           break
         default:
           value = null
