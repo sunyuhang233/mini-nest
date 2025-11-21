@@ -20,6 +20,7 @@ export function Module(metadata: ModuleMetadata): ClassDecorator {
     //     return null
     //   }
     // }).filter(Boolean)
+    defineProvidersModule(target, metadata.providers);
     defineModule(target, (metadata.providers || []).map((item) => item instanceof Function ? item : item.useClass).filter(Boolean))
     Reflect.defineMetadata('providers', metadata.providers, target)
     Reflect.defineMetadata('imports', metadata.imports, target)
@@ -51,4 +52,11 @@ export function Global(): ClassDecorator {
  */
 export interface DynamicModule extends ModuleMetadata {
   module: Function
+}
+
+
+export function defineProvidersModule(nestModule, providers = []) {
+  defineModule(nestModule,
+    (providers ?? []).map(provider => provider instanceof Function ? provider : provider.useClass)
+      .filter(Boolean));
 }

@@ -2,12 +2,13 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, defineModule, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, NestInterceptor, RequestMethod, ValidationPipe } from '@nestjs/common';
+import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, NestInterceptor, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from "./constants";
 import { PipeTransform } from "@nestjs/common";
 import { CanActivate } from "@nestjs/common";
 import { Reflector } from "./reflector";
 import { from, mergeMap, Observable, of, catchError, EMPTY } from "rxjs";
+import { defineModule, defineProvidersModule } from '../common/module.decorator';
 export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();
@@ -194,7 +195,7 @@ export class NestApplication {
    */
   addDefaultProviders() {
     // 添加默认的providers
-    this.addProvider(Reflector, this.module, true)
+    this.addProvider(Reflector, this.module);
   }
   /**
    * 初始化依赖注入容器
@@ -264,25 +265,26 @@ export class NestApplication {
    * 从模块中注册providers
    * @param module 要注册providers的模块
    */
-  registerProvidersFromModule(module: any, ...parentModules: any[]) {
-    const providers = Reflect.getMetadata("providers", module) || []
-    const exports = Reflect.getMetadata('exports', module) || [];
-    const global = Reflect.getMetadata('global', module) || false
-    for (const exportToken of exports) {
-      // 判断是否是模块 如果是模块 则递归注册providers
-      if (this.isModule(exportToken)) {
-        this.registerProvidersFromModule(exportToken, module, ...parentModules)
-      } else {
-        // 不是模块 则直接添加到providers
-        const provider = providers.find(provider => provider === exportToken || provider.provide === exportToken);
-        if (provider) {
-          [module, ...parentModules].forEach(module => {
-            this.addProvider(provider, module, global)
-          })
+  private registerProvidersFromModule(module, ...parentModules) {
+    const importedProviders = Reflect.getMetadata('providers', module) ?? [];
+    const exports = Reflect.getMetadata('exports', module) ?? [];
+    for (let importedProvider of importedProviders) {
+      const exportToken = importedProvider.provide ?? importedProvider;
+      if (exports.includes()) {
+        if (this.isModule(exportToken)) {
+          this.registerProvidersFromModule(exportToken, module, ...parentModules);
+        } else {
+          const provider = importedProviders.find(provider => provider === exportToken || provider.provide == exportToken);
+          if (provider) {
+            [module, ...parentModules].forEach(module => {
+              this.processProvider(provider, module);
+            });
+          }
         }
+      } else {
+        this.processProvider(importedProvider, module);
       }
-    }
-    this.initControllers(module)
+    } this.initControllers(module);
   }
   /**
    * 判断是否为模块
@@ -298,9 +300,10 @@ export class NestApplication {
    * @param provider 要添加的provider
    * @param module 要添加到的模块
    */
-  addProvider(provider: any, module: any, global: boolean = false) {
+  addProvider(provider: any, module: any) {
     // 代表module这个模块对应的providers的token集合
     // global 为true的情况就是全局providers 否则就是模块providers
+    const global = Reflect.getMetadata('global', module) ?? false;
     const providers = global ? this.globalProviders : (this.moduleProviders.get(module) || new Set());
     if (!global) {
       this.moduleProviders.set(module, providers)
