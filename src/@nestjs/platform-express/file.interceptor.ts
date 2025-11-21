@@ -1,6 +1,7 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, BadRequestException } from '@nestjs/common';
 import multer from 'multer';
 import { Request, Response } from 'express';
+import { Observable } from 'rxjs';
 
 export function FileInterceptor(fileName: string) {
   @Injectable()
@@ -67,4 +68,16 @@ export function AnyFilesInterceptor() {
     }
   }
   return new AnyFilesInterceptor();
+}
+
+
+@Injectable()
+export class NoFilesInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest<Request>();
+    if (request.files && request.files.length as number > 0) {
+      throw new BadRequestException('Files are not allowed');
+    }
+    return next.handle();
+  }
 }
