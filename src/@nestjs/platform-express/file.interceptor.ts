@@ -34,3 +34,20 @@ export function FilesInterceptor(fieldName: string, maxCount?: number) {
   }
   return new FilesInterceptor();
 }
+
+
+export function FileFieldsInterceptor(uploadFields: { name: string, maxCount?: number }[]) {
+  @Injectable()
+  class FileFieldsInterceptor implements NestInterceptor {
+    async intercept(context: ExecutionContext, next: CallHandler) {
+      const request = context.switchToHttp().getRequest<Request>();
+      const response = context.switchToHttp().getResponse<Response>();
+      const upload = multer()
+      await new Promise((resolve, reject) => {
+        upload.fields(uploadFields)(request, response, (err) => (err ? reject(err) : resolve(undefined)));
+      });
+      return next.handle();
+    }
+  }
+  return new FileFieldsInterceptor();
+}
