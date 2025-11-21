@@ -1,6 +1,6 @@
-import { Controller, FileTypeValidator, Get, MaxFileSizeValidator, ParseFilePipe, Post, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { Controller, FileTypeValidator, Get, MaxFileSizeValidator, ParseFilePipe, Post, UploadedFile, UploadedFiles, UseInterceptors } from "@nestjs/common";
 import { AppService } from "./app.service";
-import { FileInterceptor } from "@nestjs/platform-express";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { FileSizeValidationPipe } from "./pipes/file-size-validation.pipe";
 @Controller("app")
 export class AppController {
@@ -27,5 +27,12 @@ export class AppController {
   file: Express.Multer.File) {
     console.log(file);
     return { message: 'fileValidator' };
+  }
+
+  @Post('files')
+  @UseInterceptors(FilesInterceptor('files', 2))
+  uploadFiles(@UploadedFiles() files: Array<Express.Multer.File>) {
+    console.log(files);
+    return { message: 'Files uploaded successfully' };
   }
 }

@@ -631,6 +631,9 @@ export class NestApplication {
         case 'File':
           value = req.file
           break
+        case 'Files':
+          value = req.files
+          break
         default:
           value = null
           break
