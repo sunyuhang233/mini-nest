@@ -51,3 +51,20 @@ export function FileFieldsInterceptor(uploadFields: { name: string, maxCount?: n
   }
   return new FileFieldsInterceptor();
 }
+
+
+export function AnyFilesInterceptor() {
+  @Injectable()
+  class AnyFilesInterceptor implements NestInterceptor {
+    async intercept(context: ExecutionContext, next: CallHandler) {
+      const request = context.switchToHttp().getRequest<Request>();
+      const response = context.switchToHttp().getResponse<Response>();
+      const upload = multer()
+      await new Promise((resolve, reject) => {
+        upload.any()(request, response, (err) => (err ? reject(err) : resolve(undefined)));
+      });
+      return next.handle();
+    }
+  }
+  return new AnyFilesInterceptor();
+}
