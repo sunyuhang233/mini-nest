@@ -1,4 +1,4 @@
-import { ArgumentMetadata, BadRequestException, PipeTransform } from "@nestjs/common";
+import { ArgumentMetadata, BadRequestException, PipeTransform } from "../index";
 import { validate, ValidationError } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 export class ValidationPipe implements PipeTransform {

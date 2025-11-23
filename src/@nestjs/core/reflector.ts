@@ -1,4 +1,4 @@
-import { SetMetadata } from '@nestjs/common';
+import { SetMetadata } from '../common';
 import 'reflect-metadata';
 
 export class Reflector {

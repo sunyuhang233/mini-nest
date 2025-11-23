@@ -2,13 +2,13 @@ import "reflect-metadata"
 import express, { Express, Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from 'express';
 import { Logger } from './logger';
 import path from 'path';
-import { ArgumentsHost, CONSTRUCTOR_PARAMTYPES, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, NestInterceptor, RequestMethod, ValidationPipe } from '@nestjs/common';
+import { CONSTRUCTOR_PARAMTYPES, ExecutionContext, GlobalHttpExceptionFilter, HttpException, HttpStatus, INJECTED_TOKENS, NestInterceptor, RequestMethod } from '../common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from "./constants";
-import { PipeTransform } from "@nestjs/common";
-import { CanActivate } from "@nestjs/common";
+import { PipeTransform } from "../common";
+import { CanActivate } from "../common";
 import { Reflector } from "./reflector";
 import { from, mergeMap, Observable, of, catchError, EMPTY } from "rxjs";
-import { defineModule, defineProvidersModule } from '../common/module.decorator';
+import { defineModule } from '../common/module.decorator';
 export class NestApplication {
   // express 应用实例
   private readonly app: Express = express();

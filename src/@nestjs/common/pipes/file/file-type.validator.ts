@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common/injectable.decorator";
+import { Injectable } from "../../injectable.decorator";
 import { FileValidator } from "./file-validator.interface";
-import { BadRequestException } from "@nestjs/common/http-exception";
+import { BadRequestException } from "../../index";
 
 export interface FileTypeValidatorOptions {
   fileType: string;

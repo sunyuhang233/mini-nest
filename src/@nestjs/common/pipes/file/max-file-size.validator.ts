@@ -1,4 +1,4 @@
-import { BadRequestException, FileValidator, Injectable } from "@nestjs/common";
+import { BadRequestException, FileValidator, Injectable } from "../../index";
 
 export interface MaxFileSizeValidatorOptions {
   maxSize: number;

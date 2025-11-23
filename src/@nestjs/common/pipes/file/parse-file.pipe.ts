@@ -1,4 +1,4 @@
-import { BadRequestException, FileValidator, Injectable, PipeTransform } from "@nestjs/common";
+import { BadRequestException, FileValidator, Injectable, PipeTransform } from "../../index";
 export interface ParseFilePipeOptions {
   validators?: FileValidator[];
 }
