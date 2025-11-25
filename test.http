@@ -1,31 +1,15 @@
 ###
-POST http://localhost:3000/user/register
+POST http://localhost:3000/auth/sign-in
 Content-Type: application/json
 
 
 {
-  "username": "hang",
-  "password": "123456"
+  "username": "john",
+  "password": "changeme"
 }
-
+###
+GET http://localhost:3000/auth/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiam9obiIsImlhdCI6MTc2NDA3OTM1MCwiZXhwIjoxNzY0MDc5NDEwfQ.IKL3iXPy8SWihTf6CDECf2BsRjXR-NZ30Lqn9SOptno
 
 ### 
-GET http://localhost:3000/user/redirect 
-
-###
-POST http://localhost:3000/app/create-cat
-Content-Type: application/json
-
-{
-  "name": "hang",
-  "age": 18
-}
-
-###
-POST http://localhost:3000/app/create-user
-Content-Type: application/json
-
-{
-  "name": "hang",
-  "age": "18"
-}
+GET http://localhost:3000/users/list
