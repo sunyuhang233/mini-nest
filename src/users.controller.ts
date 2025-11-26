@@ -1,11 +1,16 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseGuards } from '@nestjs/common';
 import { Get } from './@nestjs/common';
 import { isPublic } from './public.metadata';
+import { Roles } from './roles.decorator';
+import { Role } from './role.enum';
+import { RolesGuard } from './roles.guard';
 
 @Controller('users')
+@UseGuards(RolesGuard)
 export class UsersController {
   @Get("list")
-  @isPublic()
+  // @isPublic()
+  @Roles(Role.User)
   getList() {
     return {
       code: 200,

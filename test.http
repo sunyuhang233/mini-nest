@@ -9,7 +9,8 @@ Content-Type: application/json
 }
 ###
 GET http://localhost:3000/auth/profile
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiam9obiIsImlhdCI6MTc2NDA3OTM1MCwiZXhwIjoxNzY0MDc5NDEwfQ.IKL3iXPy8SWihTf6CDECf2BsRjXR-NZ30Lqn9SOptno
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiam9obiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2NDE2MTU2MCwiZXhwIjoxNzY0MTYxNjIwfQ.n_Dg9Um-o-CHNSIV2wzrZVv3g1g20SAYaCEklHHChyc
 
 ### 
 GET http://localhost:3000/users/list
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiam9obiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2NDE2MTU2MCwiZXhwIjoxNzY0MTYxNjIwfQ.n_Dg9Um-o-CHNSIV2wzrZVv3g1g20SAYaCEklHHChyc
