@@ -22,6 +22,7 @@
     "cli-color": "^2.0.4",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
+    "nestjs-i18n": "^10.5.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "uuid": "^11.0.3",

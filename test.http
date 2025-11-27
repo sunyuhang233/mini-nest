@@ -1,4 +1,4 @@
-###
+### 登录
 POST http://localhost:3000/auth/sign-in
 Content-Type: application/json
 
@@ -7,10 +7,26 @@ Content-Type: application/json
   "username": "john",
   "password": "changeme"
 }
-###
+### 获取用户信息
 GET http://localhost:3000/auth/profile
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiam9obiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2NDE2MTU2MCwiZXhwIjoxNzY0MTYxNjIwfQ.n_Dg9Um-o-CHNSIV2wzrZVv3g1g20SAYaCEklHHChyc
 
-### 
+### 获取用户列表
 GET http://localhost:3000/users/list
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiam9obiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2NDE2MTU2MCwiZXhwIjoxNzY0MTYxNjIwfQ.n_Dg9Um-o-CHNSIV2wzrZVv3g1g20SAYaCEklHHChyc
+
+### 测试多语言
+GET http://localhost:3000/app
+Accept-Language: zh-CN
+
+### 测试多语言参数
+GET http://localhost:3000/app/args?lang=zh-CN
+
+### 测试创建用户多语言
+POST http://localhost:3000/app/create-user
+Content-Type: application/json
+
+{
+  "email": "hang",
+  "password": "123456"
+}

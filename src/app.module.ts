@@ -5,6 +5,8 @@ import { AppService } from "./app.service";
 import { AuthModule } from './auth.module';
 import { UsersModule } from './users.module';
 import { AuthGuard } from "./auth.guard";
+import { AcceptLanguageResolver, CookieResolver, HeaderResolver, I18nModule, QueryResolver } from "nestjs-i18n";
+import path from "path";
 @Module({
   providers: [
     AppService,
@@ -14,6 +16,19 @@ import { AuthGuard } from "./auth.guard";
     }
   ],
   controllers: [AppController],
-  imports: [AuthModule, UsersModule],
+  imports: [AuthModule, UsersModule, I18nModule.forRoot({
+    fallbackLanguage: 'en',
+    loaderOptions: {
+      path: path.join(__dirname, '/i18n/'),
+      watch: true,
+    },
+    resolvers: [
+      new QueryResolver(["lang", "l"]),
+      new HeaderResolver(["x-custom-lang"]),
+      new CookieResolver(),
+      AcceptLanguageResolver,
+    ],
+    typesOutputPath: path.join(__dirname, '../src/generated/i18n.generated.ts'),
+  }),],
 })
 export class AppModule { }
