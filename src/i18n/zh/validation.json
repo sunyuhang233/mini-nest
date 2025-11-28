@@ -1,5 +1,0 @@
-{
-  "NOT_EMPTY": "不能为空",
-  "INVALID_EMAIL": "必须是一个有效的邮箱",
-  "MIN": "不能小于 {constraints.0}"
-}
